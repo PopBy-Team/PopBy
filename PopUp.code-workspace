@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "PopUp",
+			"path": "."
+		},
+		{
+			"name": "src",
+			"path": "../src"
+		},
+		{
+			"name": "test",
+			"path": "../test"
+		}
+	],
+	"settings": {}
+}
