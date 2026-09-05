@@ -5,6 +5,12 @@ export const VIEWPORT_THRESHOLDS = {
   nearMeters: 700,
 }
 
+export const MAP_3D_VIEW = Object.freeze({
+  zoom: 15.55,
+  pitch: 48,
+  bearing: -18,
+})
+
 export function distanceMeters(a, b) {
   if (!a || !b) return Infinity
   return distance(point(a), point(b), { units: 'meters' })
@@ -41,6 +47,11 @@ export function fitMapToRadius(map, coordinate, radiusKm = 0.37) {
 
   map.fitBounds(
     [[west, south], [east, north]],
-    { padding: 36, duration: 900 },
+    {
+      padding: 36,
+      duration: 900,
+      pitch: MAP_3D_VIEW.pitch,
+      bearing: MAP_3D_VIEW.bearing,
+    },
   )
 }

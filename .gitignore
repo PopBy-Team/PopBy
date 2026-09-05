@@ -1,0 +1,21 @@
+.DS_Store
+.Rhistory
+.env
+.env.*
+!.env.example
+.pnpm-store/
+pnpm-lock.yaml
+pnpm-workspace.yaml
+node_modules/
+dist/
+
+# Local archives and exported chat context
+Archive.zip
+ChatGPT - Project only memory.html
+ChatGPT - Project only memory_files/
+
+# Superseded nested fork checkout
+PopUp/
+
+# Local implementation notes
+docs/superpowers/plans/

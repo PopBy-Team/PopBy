@@ -109,6 +109,34 @@ a:focus-visible {
   background: rgba(255,255,255,.84);
 }
 
+.map-status {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: calc(58px + env(safe-area-inset-bottom));
+  width: min(330px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  display: grid;
+  gap: 3px;
+  padding: 12px 15px;
+  border: 1px solid rgba(45, 42, 36, .08);
+  border-radius: 17px;
+  background: rgba(251, 250, 246, .92);
+  box-shadow: 0 12px 34px rgba(28, 26, 22, .14);
+  backdrop-filter: blur(14px);
+  text-align: center;
+  pointer-events: none;
+}
+.map-status strong {
+  font-size: 13px;
+  letter-spacing: -.01em;
+}
+.map-status span {
+  color: #6e706c;
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
 .map-toast {
   position: absolute;
   z-index: 20;

@@ -2,14 +2,22 @@ import { useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { CATEGORY_ICONS } from '../data/categories'
-import { makeSuburbsGeoJSON } from '../data/suburbs'
+import {
+  makeFitzroyMaskGeoJSON,
+  makeSuburbsGeoJSON,
+} from '../data/suburbs'
 import {
   fitMapToRadius,
+  MAP_3D_VIEW,
   getMarkerSize,
   getViewportMode,
   getViewportWidthMeters,
 } from '../lib/geo'
-import { disposeMap } from '../lib/mapLifecycle'
+import { attachMapLongPress, disposeMap } from '../lib/mapLifecycle'
+import {
+  createPoiNameLayer,
+  STANDARD_BASEMAP_CONFIG,
+} from '../lib/mapPresentation'
 
 const FITZROY_CENTER = [144.9788, -37.8005]
 
@@ -61,19 +69,11 @@ export default function MapView({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/standard',
       center: FITZROY_CENTER,
-      zoom: 14.2,
-      pitch: 0,
-      bearing: 0,
+      zoom: MAP_3D_VIEW.zoom,
+      pitch: MAP_3D_VIEW.pitch,
+      bearing: MAP_3D_VIEW.bearing,
       config: {
-        basemap: {
-          theme: 'monochrome',
-          lightPreset: 'day',
-          showPointOfInterestLabels: false,
-          showTransitLabels: false,
-          show3dObjects: false,
-          showPedestrianRoads: true,
-          showRoadLabels: true,
-        },
+        basemap: STANDARD_BASEMAP_CONFIG,
       },
     })
 
@@ -100,34 +100,52 @@ export default function MapView({
         data: makeSuburbsGeoJSON(progress >= 1),
       })
 
+      map.addSource('fitzroy-mask', {
+        type: 'geojson',
+        data: makeFitzroyMaskGeoJSON(),
+      })
+
+      map.addSource('mapbox-streets', {
+        type: 'vector',
+        url: 'mapbox://mapbox.mapbox-streets-v8',
+      })
+
+      map.addLayer(createPoiNameLayer())
+
       map.addLayer({
-        id: 'suburb-fill',
+        id: 'outside-fitzroy-mask',
         type: 'fill',
-        source: 'suburbs',
+        source: 'fitzroy-mask',
+        slot: 'top',
         paint: {
-          'fill-color': [
-            'match',
-            ['get', 'status'],
-            'unlocked', '#fff0a8',
-            '#b8b8b8',
-          ],
-          'fill-opacity': [
-            'match',
-            ['get', 'status'],
-            'unlocked', 0.20,
-            0.35,
-          ],
+          'fill-color': '#16191d',
+          'fill-opacity': 0.48,
+          'fill-emissive-strength': 0.15,
         },
       })
 
       map.addLayer({
-        id: 'suburb-line',
+        id: 'fitzroy-boundary',
         type: 'line',
         source: 'suburbs',
+        slot: 'top',
+        filter: ['==', ['get', 'name'], 'Fitzroy'],
         paint: {
-          'line-color': '#ffffff',
-          'line-width': 1.5,
-          'line-opacity': 0.8,
+          'line-color': '#f0c96d',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 11, 1.25, 16, 2.25],
+          'line-opacity': 0.92,
+        },
+      })
+
+      map.addLayer({
+        id: 'locked-suburb-hit-area',
+        type: 'fill',
+        source: 'suburbs',
+        slot: 'top',
+        filter: ['==', ['get', 'status'], 'locked'],
+        paint: {
+          'fill-color': '#000000',
+          'fill-opacity': 0.001,
         },
       })
 
@@ -147,7 +165,7 @@ export default function MapView({
         },
       })
 
-      map.on('click', 'suburb-fill', (event) => {
+      map.on('click', 'locked-suburb-hit-area', (event) => {
         const feature = event.features?.[0]
         if (feature?.properties?.status === 'locked') {
           lockedClickRef.current?.(feature.properties.name)
@@ -160,7 +178,7 @@ export default function MapView({
         if (loc) clickRef.current?.(loc)
       })
 
-      setupLongPress(map)
+      attachMapLongPress(map, (coordinate) => longPressRef.current?.(coordinate))
       syncMarkers(map)
     })
 
@@ -222,55 +240,6 @@ export default function MapView({
     }
 
     map.on('move', () => syncMarkers(map))
-
-    function setupLongPress(currentMap) {
-      const canvas = currentMap.getCanvas()
-      let timer = null
-      let start = null
-
-      const clear = () => {
-        if (timer) clearTimeout(timer)
-        timer = null
-        start = null
-      }
-
-      const pointerDown = (event) => {
-        if (event.pointerType === 'mouse' && event.button !== 0) return
-        const rect = canvas.getBoundingClientRect()
-        start = {
-          clientX: event.clientX,
-          clientY: event.clientY,
-          x: event.clientX - rect.left,
-          y: event.clientY - rect.top,
-        }
-
-        timer = setTimeout(() => {
-          const lngLat = currentMap.unproject([start.x, start.y])
-          navigator.vibrate?.(20)
-          longPressRef.current?.([lngLat.lng, lngLat.lat])
-          clear()
-        }, 650)
-      }
-
-      const pointerMove = (event) => {
-        if (!start) return
-        if (Math.hypot(event.clientX - start.clientX, event.clientY - start.clientY) > 10) {
-          clear()
-        }
-      }
-
-      canvas.addEventListener('pointerdown', pointerDown)
-      canvas.addEventListener('pointermove', pointerMove)
-      canvas.addEventListener('pointerup', clear)
-      canvas.addEventListener('pointercancel', clear)
-
-      currentMap.once('remove', () => {
-        canvas.removeEventListener('pointerdown', pointerDown)
-        canvas.removeEventListener('pointermove', pointerMove)
-        canvas.removeEventListener('pointerup', clear)
-        canvas.removeEventListener('pointercancel', clear)
-      })
-    }
 
     return () => disposeMap(map, mapRef, markersRef)
   }, [])

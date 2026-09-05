@@ -7,12 +7,18 @@ import {
   getViewportMode,
   getViewportWidthMeters,
 } from '../src/lib/geo.js'
+import * as geo from '../src/lib/geo.js'
 
 test('getViewportMode switches at the meter-based range boundaries', () => {
   assert.equal(getViewportMode(1501), 'far')
   assert.equal(getViewportMode(1500), 'medium')
   assert.equal(getViewportMode(700), 'medium')
   assert.equal(getViewportMode(699), 'near')
+})
+
+test('the initial 3D view is close enough to reveal Standard buildings', () => {
+  assert.ok(geo.MAP_3D_VIEW.zoom >= 15.5)
+  assert.ok(geo.MAP_3D_VIEW.pitch >= 45)
 })
 
 test('getMarkerSize keeps medium markers consistent and tiers near markers', () => {
@@ -48,10 +54,16 @@ test('fitMapToRadius fits a map around the requested coordinate', () => {
   const coordinate = [144.9788, -37.8005]
   fitMapToRadius(map, coordinate)
 
+  assert.equal(typeof geo.MAP_3D_VIEW, 'object')
   assert.equal(receivedBounds.length, 2)
   assert.ok(receivedBounds[0][0] < coordinate[0])
   assert.ok(receivedBounds[0][1] < coordinate[1])
   assert.ok(receivedBounds[1][0] > coordinate[0])
   assert.ok(receivedBounds[1][1] > coordinate[1])
-  assert.deepEqual(receivedOptions, { padding: 36, duration: 900 })
+  assert.deepEqual(receivedOptions, {
+    padding: 36,
+    duration: 900,
+    pitch: geo.MAP_3D_VIEW.pitch,
+    bearing: geo.MAP_3D_VIEW.bearing,
+  })
 })

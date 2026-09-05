@@ -1,4 +1,4 @@
-const GUIDE_VERSION = 'v2'
+const GUIDE_VERSION = 'v3'
 
 const onboardingKey = `popby_onboarding_${GUIDE_VERSION}`
 
@@ -11,76 +11,110 @@ export const ONBOARDING_STEPS = [
     eyebrow: 'Welcome to PopBy',
     title: 'Notice what’s already around you.',
     body:
-      'No sign-up, profile or followers. PopBy remembers your Thoughts, unlocks and reports on this browser with an anonymous device ID.',
-    note: 'For this MVP, clearing site data resets those local memories.',
+      'No sign-up, profile or followers. PopBy remembers your Thoughts and unlocks on this browser with an anonymous device ID.',
+    note: 'Clearing site data resets these MVP local memories.',
     visual: '✦',
   },
   {
     eyebrow: 'Explore',
-    title: 'Fitzroy is open. The map grows with the community.',
+    title: 'Fitzroy is open.',
     body:
-      'Drag to explore. Zoom out and Thoughts become dots; zoom in and they become category icons. Larger icons mean more Thoughts at that place. Grey suburbs are waiting to be unlocked.',
+      'Far away, Thoughts appear as dots. Closer in, category icons appear, and bigger icons mean more Thoughts.',
     note:
-      'Fitzroy reaches 100% only after 15 active locations, 50 Thoughts, 30 contributors and 50 successful unlocks.',
+      'Grey suburbs await unlock. Fitzroy needs 15 active locations, 50 Thoughts, 30 contributors and 50 successful unlocks.',
     visual: '↔',
   },
   {
     eyebrow: 'Unlock',
     title: 'Some Thoughts only make sense when you’re there.',
     body:
-      'Tap a Thought location. You need to be within 50m to unlock it. “Approaching…” means you’re getting close; “Get closer” means it’s still too far away.',
-    note: 'Previously unlocked locations can be opened again later.',
+      'Move within 50m to unlock a Thought location. “Approaching…” means you’re nearly there.',
+    note: 'Unlocked public locations can be reopened later.',
     visual: '◎',
   },
   {
     eyebrow: 'Drop',
     title: 'Leave something behind where you noticed it.',
     body:
-      'Long-press a point within 50m of your current location. Pick a category, then add up to 200 words, a card background or current-scene photo, and an optional music link.',
+      'Long-press within 50m, then choose a category, card background and optional content.',
     note:
-      'Community limits: max 5 drops per device per hour, and max 3 new Thoughts at the same location per hour.',
+      'Limits: 5 Thoughts per device per hour, and 3 per location per hour.',
     visual: '＋',
   },
   {
     eyebrow: 'Privacy',
     title: 'Your exact drop point isn’t published.',
     body:
-      'Before a Thought is saved, PopBy checks for buildings, shifts the public point toward a nearby safer path/street when possible, then merges nearby drops into a ~20m location node.',
-    note: 'The raw drop coordinate is used for validation but is not stored.',
-    visual: '◌',
+      'PopBy uses a building check, a nearby safer path/street anchor, then a shared ~20m location node.',
+    note: 'Your raw point is used for validation and is not stored.',
+    visual: '⌁',
   },
   {
-    eyebrow: 'Keep & care',
-    title: 'Mine keeps your memories easy to find.',
+    eyebrow: 'Mine',
+    title: 'Keep your own city memories easy to find.',
     body:
-      'Turn on Mine to show only locations where you left a Thought. Your own Thoughts can be reopened from anywhere. Use ••• on public cards to report abuse.',
+      'Mine shows your own Thought locations and lets you reopen your own cards remotely.',
     note:
-      'Each device can report a Thought once. 2 unique reports automatically hide it.',
+      'Other people’s cards stay private in Mine. 2 unique reports hide public abuse.',
     visual: 'Mine',
   },
 ]
 
-export function isOnboardingComplete() {
-  return localStorage.getItem(onboardingKey) === 'done'
+function getStorage(storage) {
+  if (storage) return storage
+  if (typeof localStorage !== 'undefined') return localStorage
+  throw new Error('Browser storage is not available')
 }
 
-export function completeOnboarding() {
-  localStorage.setItem(onboardingKey, 'done')
+function listStorageKeys(storage) {
+  if (typeof storage.keys === 'function') return storage.keys()
+  if (typeof storage.key === 'function' && typeof storage.length === 'number') {
+    return Array.from({ length: storage.length }, (_, index) => storage.key(index))
+      .filter(Boolean)
+  }
+  return Object.keys(storage)
 }
 
-export function shouldShowTip(name) {
-  return localStorage.getItem(tipKey(name)) !== 'shown'
+export function isOnboardingComplete(storage) {
+  return getStorage(storage).getItem(onboardingKey) === 'done'
 }
 
-export function markTipShown(name) {
-  localStorage.setItem(tipKey(name), 'shown')
+export function completeOnboarding(storage) {
+  getStorage(storage).setItem(onboardingKey, 'done')
 }
 
-export function resetGuidance() {
-  localStorage.removeItem(onboardingKey)
-  Object.keys(localStorage)
+export function shouldShowTip(name, storage) {
+  return getStorage(storage).getItem(tipKey(name)) !== 'shown'
+}
+
+export function markTipShown(name, storage) {
+  getStorage(storage).setItem(tipKey(name), 'shown')
+}
+
+export function resetGuidance(storage) {
+  const target = getStorage(storage)
+  target.removeItem(onboardingKey)
+  listStorageKeys(target)
     .filter((key) => key.startsWith(`popby_tip_${GUIDE_VERSION}_`))
-    .forEach((key) => localStorage.removeItem(key))
+    .forEach((key) => target.removeItem(key))
+}
+
+export function getMapStatus({ loading, mineMode, locationCount }) {
+  if (loading) {
+    return {
+      title: 'Finding nearby Thoughts…',
+      body: 'Checking Fitzroy’s shared places.',
+    }
+  }
+
+  if (mineMode && locationCount === 0) {
+    return {
+      title: 'No memories here yet',
+      body: 'Turn Mine off to explore, then long-press nearby to leave your first Thought.',
+    }
+  }
+
+  return null
 }
 
 export function friendlyPublishError(message = '') {
@@ -115,7 +149,14 @@ export function friendlyPublishError(message = '') {
   if (message.includes('No nearby public path found')) {
     return {
       title: 'Move toward a public path',
-      body: 'We couldn’t find a safe public anchor nearby. Move a little closer to the street or footpath and try again.',
+      body: 'We couldn’t find a safer nearby path or street anchor. Move a little closer to one and try again.',
+    }
+  }
+
+  if (message.includes('200-word maximum')) {
+    return {
+      title: '200-word maximum',
+      body: 'Shorten this Thought before dropping it.',
     }
   }
 
