@@ -118,14 +118,18 @@ Exactly:
 - Sound
 - Moment
 
-Centralize icon mapping. MVP icons may be:
+Centralize and use this exact icon mapping everywhere, including the onboarding
+legend, map markers, category fan, composer and reader cards:
 
 ```js
 {
-  Animals:'🐾', Nature:'🌿', Eat:'🍜', Art:'🎨',
-  Place:'📍', Sound:'♫', Moment:'✦'
+  Animals:'🐾', Nature:'🌳', Eat:'🍴', Art:'🎨',
+  Place:'📍', Sound:'🎵', Moment:'✨'
 }
 ```
+
+The onboarding Explore step must explain what each Thought icon means. In FAR
+mode, replace category icons with softly glowing pale-yellow firefly dots.
 
 ## Thought content
 

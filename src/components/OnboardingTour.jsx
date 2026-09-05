@@ -27,6 +27,17 @@ export default function OnboardingTour({ onComplete }) {
         <h1>{step.title}</h1>
         <p>{step.body}</p>
 
+        {step.legend && (
+          <div className="onboarding-legend" aria-label="Thought category icons">
+            {step.legend.map((item) => (
+              <span key={item.name}>
+                <b aria-hidden="true">{item.icon}</b>
+                {item.name}
+              </span>
+            ))}
+          </div>
+        )}
+
         <div className="onboarding-note">{step.note}</div>
 
         <div className="onboarding-dots" aria-hidden="true">

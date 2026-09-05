@@ -58,3 +58,87 @@ export function createPoiNameLayer() {
     },
   }
 }
+
+export function createFarThoughtLayers() {
+  return [
+    {
+      id: 'far-thought-dots',
+      type: 'circle',
+      source: 'thought-dots',
+      paint: {
+        'circle-radius': 4.5,
+        'circle-color': '#fff0a8',
+        'circle-opacity': 0.96,
+        'circle-blur': 0.28,
+        'circle-stroke-color': 'rgba(255, 238, 151, .42)',
+        'circle-stroke-width': 4,
+        'circle-emissive-strength': 1,
+      },
+    },
+    {
+      id: 'far-thought-hit-area',
+      type: 'circle',
+      source: 'thought-dots',
+      paint: {
+        'circle-radius': 22,
+        'circle-color': '#000000',
+        'circle-opacity': 0.001,
+      },
+    },
+  ]
+}
+
+export function getMapLabelPolicy(mode) {
+  const far = mode === 'far'
+
+  return {
+    showPoiNames: !far,
+    showRoadLabels: !far,
+    showPlaceLabels: true,
+  }
+}
+
+export function applyMapLabelPolicy(map, mode) {
+  const policy = getMapLabelPolicy(mode)
+
+  if (map.getLayer('poi-name-labels')) {
+    map.setLayoutProperty(
+      'poi-name-labels',
+      'visibility',
+      policy.showPoiNames ? 'visible' : 'none',
+    )
+  }
+
+  map.setConfigProperty?.('basemap', 'showRoadLabels', policy.showRoadLabels)
+  map.setConfigProperty?.('basemap', 'showPlaceLabels', policy.showPlaceLabels)
+
+  return policy
+}
+
+export function shouldDismissProgress(currentlyDismissed, eventType, viewportMode) {
+  if (currentlyDismissed) return true
+  return eventType === 'zoomend' && viewportMode !== 'far'
+}
+
+export function createThoughtMarkerOptions(element) {
+  return {
+    element,
+    anchor: 'center',
+    offset: [0, 0],
+    altitude: 0,
+    pitchAlignment: 'viewport',
+    rotationAlignment: 'viewport',
+    occludedOpacity: 1,
+  }
+}
+
+export function syncThoughtMarkerCoordinate(marker, location) {
+  const coordinate = [Number(location.lng), Number(location.lat)]
+  marker.setLngLat(coordinate)
+  return coordinate
+}
+
+export function refreshLocationPresentation(map, locationsGeoJSON, syncMarkers) {
+  map.getSource?.('thought-dots')?.setData(locationsGeoJSON)
+  syncMarkers?.(map)
+}

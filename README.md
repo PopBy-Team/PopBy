@@ -61,6 +61,11 @@ The seed is safe to run more than once. With `VITE_DEMO_MODE=true`, the same
 fictional dataset is also available immediately in the browser, so the map can
 be demonstrated before the optional database seed is applied.
 
+If the original PopBy schema is already installed, do not rerun the whole
+schema. Run `supabase/upgrade_mobile_thought_cards.sql` once instead. It adds
+the mobile card appearance fields and the owner-checked delete RPC without
+removing existing Thoughts.
+
 ## 4. Run
 
 ```bash
@@ -79,9 +84,10 @@ presentable even when you are physically somewhere else.
 
 ## 5. Main interaction
 
-- Zoom out: thoughts become small dots.
-- Zoom in: category markers appear.
-- Long press within 50m of current/demo GPS: Drop Thought.
+- Zoom out: Thoughts become pale-yellow firefly dots and detail labels hide.
+- Zoom in: the exact category markers appear: 🐾 🌳 🍴 🎨 📍 🎵 ✨.
+- Long press within 50m of current/demo GPS: choose a category from the radial
+  fan, then edit the centered Thought card.
 - Click location > if within 50m: unlock.
 - Previously unlocked locations can be reopened.
 - Mine filters to your own thoughts and allows remote viewing.
@@ -128,10 +134,12 @@ The updated starter includes a complete first-run guidance system:
 
 - 6-step onboarding on first open
 - contextual tips for location, unlock distance, locked suburbs, drop distance and Mine
-- persistent Drop rules (50m, 5/hour/device, 3/hour/location)
-- privacy explanation before publishing
-- first-card swipe/report guide
-- simple Fitzroy progress bar + Next: Carlton
+- first-publish Drop rules (50m, 5/hour/device, 3/hour/location), followed by
+  contextual rule messages only when an action exceeds a limit
+- live-camera-only photo backgrounds plus paper, Morandi, font and size tools
+- centered swipe card reader with owner Delete / public Report actions
+- simple Fitzroy progress bar + Next: Carlton, hidden after category icons appear
+- a complete seven-icon legend in the Explore instruction
 - `?` button to replay the guide
 
 See `GUIDANCE.md` for the complete trigger/copy/presentation matrix.

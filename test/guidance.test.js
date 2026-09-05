@@ -10,6 +10,8 @@ import {
   shouldShowTip,
   friendlyPublishError,
   getMapStatus,
+  markFirstThoughtPublished,
+  shouldShowFirstPublishHint,
 } from '../src/lib/guidance.js'
 
 function memoryStorage() {
@@ -32,6 +34,16 @@ test('onboarding contains the six required product lessons', () => {
   assert.match(ONBOARDING_STEPS[4].body, /building check/i)
   assert.match(ONBOARDING_STEPS[4].body, /safer path\/street anchor/i)
   assert.match(ONBOARDING_STEPS[4].note, /raw point.*not stored/i)
+  assert.deepEqual(ONBOARDING_STEPS[1].legend, [
+    { name: 'Animals', icon: '🐾' },
+    { name: 'Nature', icon: '🌳' },
+    { name: 'Eat', icon: '🍴' },
+    { name: 'Art', icon: '🎨' },
+    { name: 'Place', icon: '📍' },
+    { name: 'Sound', icon: '🎵' },
+    { name: 'Moment', icon: '✨' },
+  ])
+  assert.match(ONBOARDING_STEPS[1].body, /fireflies/i)
 })
 
 test('onboarding completion and coach tips persist until reset', () => {
@@ -86,4 +98,12 @@ test('map status explains loading and an empty Mine without covering public maps
     getMapStatus({ loading: false, mineMode: true, locationCount: 1 }),
     null,
   )
+})
+
+test('drop rules remain visible until the first Thought publishes successfully', () => {
+  const storage = memoryStorage()
+
+  assert.equal(shouldShowFirstPublishHint(storage), true)
+  markFirstThoughtPublished(storage)
+  assert.equal(shouldShowFirstPublishHint(storage), false)
 })

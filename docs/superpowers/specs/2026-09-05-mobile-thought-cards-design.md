@@ -44,6 +44,17 @@ This mapping controls map markers, the category fan, card previews, and cards in
 
 The Fitzroy progress card is visible when the page first opens. The first transition from FAR mode into MEDIUM or NEAR mode fades it out. It stays hidden for the rest of that page visit, even if the user zooms out again. Reloading or revisiting PopBy shows it again. This state is session UI state and is not written to localStorage.
 
+### Map controls and marker anchoring
+
+- The Mine text pill becomes a compact icon-only card-stack control. Its visible icon is approximately 17px while the button retains a 44px touch target and an accessible `Mine` label.
+- A dedicated bottom-right recenter control always remains available. When a current position exists it returns the camera to the existing ~370m view. When no position exists it triggers high-accuracy geolocation. Demo mode recenters to the Fitzroy demo coordinate without requesting the device's real location.
+- Every HTML Thought marker is created with an explicit center anchor, zero pixel offset, zero altitude, map-plane pitch alignment, and viewport rotation alignment. Its `setLngLat([lng, lat])` is refreshed from the latest location row during every marker synchronization. The visual bubble and its 44px hit target share the same center, so count/viewport size changes cannot move the geographic anchor.
+- Location rows continue to use the database node coordinate produced by Safe Anchor and 20m merge. No screen coordinate or original raw long-press coordinate is used to position a persisted Thought marker.
+
+### Onboarding icon explanation
+
+The onboarding Explore screen includes the complete category legend: `🐾 Animals · 🌳 Nature · 🍴 Eat · 🎨 Art · 📍 Place · 🎵 Sound · ✨ Moment`. It also explains that pale-yellow fireflies are distant Thoughts and category symbols appear as the map gets closer.
+
 ## Long-press category selection
 
 A valid long-press still requires a current/demo location, a coordinate inside Fitzroy, and a distance of at most 50 metres. Invalid presses continue to show the existing contextual rule messages.

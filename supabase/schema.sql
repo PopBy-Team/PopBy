@@ -27,9 +27,10 @@ create table if not exists public.thoughts (
     category in ('Animals', 'Nature', 'Eat', 'Art', 'Place', 'Sound', 'Moment')
   ),
   body text,
-  background_type text not null default 'solid' check (
-    background_type in ('solid', 'lined', 'grid', 'photo')
-  ),
+  background_type text not null default 'solid',
+  background_color text not null default 'white',
+  font_family text not null default 'caveat',
+  font_size smallint not null default 14,
   image_url text,
   music_url text check (
     music_url is null or music_url ~* '^https?://'
@@ -37,6 +38,29 @@ create table if not exists public.thoughts (
   hidden boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+alter table public.thoughts
+  add column if not exists background_color text not null default 'white',
+  add column if not exists font_family text not null default 'caveat',
+  add column if not exists font_size smallint not null default 14;
+
+alter table public.thoughts
+  drop constraint if exists thoughts_background_type_check,
+  drop constraint if exists thoughts_background_color_check,
+  drop constraint if exists thoughts_font_family_check,
+  drop constraint if exists thoughts_font_size_check;
+
+alter table public.thoughts
+  add constraint thoughts_background_type_check check (
+    background_type in ('solid', 'lined', 'grid', 'dots', 'photo')
+  ),
+  add constraint thoughts_background_color_check check (
+    background_color in ('white', 'sage', 'rose', 'clay', 'blue', 'lavender')
+  ),
+  add constraint thoughts_font_family_check check (
+    font_family in ('caveat', 'patrick-hand', 'homemade-apple', 'island-moments')
+  ),
+  add constraint thoughts_font_size_check check (font_size in (10, 12, 14));
 
 create index if not exists thoughts_location_idx
   on public.thoughts(location_id, created_at desc);
@@ -156,9 +180,13 @@ returns table (
   category text,
   body text,
   background_type text,
+  background_color text,
+  font_family text,
+  font_size smallint,
   image_url text,
   music_url text,
-  created_at timestamptz
+  created_at timestamptz,
+  is_own boolean
 )
 language sql
 stable
@@ -170,9 +198,13 @@ as $$
     t.category,
     t.body,
     t.background_type,
+    t.background_color,
+    t.font_family,
+    t.font_size,
     t.image_url,
     t.music_url,
-    t.created_at
+    t.created_at,
+    (t.device_id = p_device_id) as is_own
   from public.thoughts t
   where t.location_id = p_location_id
     and t.hidden = false
@@ -317,7 +349,18 @@ grant execute on function public.record_unlock(
 -- only persisted coordinate is the privacy-adjusted Safe Anchor (or a nearby
 -- existing node selected by the 20m merge).
 
-create or replace function public.publish_thought(
+drop function if exists public.publish_thought(
+  uuid, double precision, double precision, double precision, double precision,
+  double precision, double precision, text, text, text, text, text, text
+);
+
+drop function if exists public.publish_thought(
+  uuid, double precision, double precision, double precision, double precision,
+  double precision, double precision, text, text, text, text, text, text,
+  smallint, text, text
+);
+
+create function public.publish_thought(
   p_device_id uuid,
   p_user_lat double precision,
   p_user_lng double precision,
@@ -329,6 +372,9 @@ create or replace function public.publish_thought(
   p_category text,
   p_body text default null,
   p_background_type text default 'solid',
+  p_background_color text default 'white',
+  p_font_family text default 'caveat',
+  p_font_size smallint default 14,
   p_image_url text default null,
   p_music_url text default null
 )
@@ -356,8 +402,22 @@ begin
   end if;
 
   if p_background_type is null
-    or p_background_type not in ('solid', 'lined', 'grid', 'photo') then
+    or p_background_type not in ('solid', 'lined', 'grid', 'dots', 'photo') then
     raise exception 'Invalid background';
+  end if;
+
+  if p_background_color is null
+    or p_background_color not in ('white', 'sage', 'rose', 'clay', 'blue', 'lavender') then
+    raise exception 'Invalid background color';
+  end if;
+
+  if p_font_family is null
+    or p_font_family not in ('caveat', 'patrick-hand', 'homemade-apple', 'island-moments') then
+    raise exception 'Invalid font';
+  end if;
+
+  if p_font_size is null or p_font_size not in (10, 12, 14) then
+    raise exception 'Invalid font size';
   end if;
 
   v_word_count := case
@@ -433,6 +493,9 @@ begin
     category,
     body,
     background_type,
+    background_color,
+    font_family,
+    font_size,
     image_url,
     music_url
   )
@@ -442,6 +505,9 @@ begin
     p_category,
     nullif(btrim(p_body), ''),
     p_background_type,
+    p_background_color,
+    p_font_family,
+    p_font_size,
     p_image_url,
     nullif(btrim(p_music_url), '')
   )
@@ -453,11 +519,13 @@ $$;
 
 revoke all on function public.publish_thought(
   uuid, double precision, double precision, double precision, double precision,
-  double precision, double precision, text, text, text, text, text, text
+  double precision, double precision, text, text, text, text, text, text,
+  smallint, text, text
 ) from public;
 grant execute on function public.publish_thought(
   uuid, double precision, double precision, double precision, double precision,
-  double precision, double precision, text, text, text, text, text, text
+  double precision, double precision, text, text, text, text, text, text,
+  smallint, text, text
 ) to anon;
 
 -- REPORT -------------------------------------------------------------------
@@ -495,6 +563,33 @@ $$;
 
 revoke all on function public.report_thought(uuid, uuid) from public;
 grant execute on function public.report_thought(uuid, uuid) to anon;
+
+-- OWNER DELETE -------------------------------------------------------------
+
+create or replace function public.delete_thought(
+  p_device_id uuid,
+  p_thought_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  delete from public.thoughts t
+  where t.id = p_thought_id
+    and t.device_id = p_device_id;
+
+  if not found then
+    raise exception 'Thought not found';
+  end if;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.delete_thought(uuid, uuid) from public;
+grant execute on function public.delete_thought(uuid, uuid) to anon, authenticated;
 
 -- DWELL --------------------------------------------------------------------
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 
 import {
   fitMapToRadius,
+  getMarkerPresentation,
   getMarkerSize,
   getViewportMode,
   getViewportWidthMeters,
@@ -29,6 +30,29 @@ test('getMarkerSize keeps medium markers consistent and tiers near markers', () 
   assert.equal(getMarkerSize(4, 'near'), 32)
   assert.equal(getMarkerSize(9, 'near'), 32)
   assert.equal(getMarkerSize(10, 'near'), 40)
+})
+
+test('marker presentation keeps every mobile tap target at least 44px without changing visual tiers', () => {
+  assert.deepEqual(getMarkerPresentation(1, 'near'), {
+    visualSize: 24,
+    touchSize: 44,
+    iconSize: 13,
+  })
+  assert.deepEqual(getMarkerPresentation(5, 'near'), {
+    visualSize: 32,
+    touchSize: 44,
+    iconSize: 18,
+  })
+  assert.deepEqual(getMarkerPresentation(12, 'near'), {
+    visualSize: 40,
+    touchSize: 44,
+    iconSize: 22,
+  })
+  assert.deepEqual(getMarkerPresentation(12, 'medium'), {
+    visualSize: 28,
+    touchSize: 44,
+    iconSize: 15,
+  })
 })
 
 test('getViewportWidthMeters measures the horizontal viewport near its center latitude', () => {

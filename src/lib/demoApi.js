@@ -5,19 +5,22 @@ import {
   getDemoProgress,
 } from '../data/demo.js'
 import { distanceMeters } from './geo.js'
+import { isValidCardAppearance, normalizeCardAppearance } from './cardAppearance.js'
 
 const CARD_FIELDS = [
   'id',
   'category',
   'body',
   'background_type',
+  'background_color',
+  'font_family',
+  'font_size',
   'image_url',
   'music_url',
   'created_at',
 ]
 
 const CATEGORIES = new Set(['Animals', 'Nature', 'Eat', 'Art', 'Place', 'Sound', 'Moment'])
-const BACKGROUNDS = new Set(['solid', 'lined', 'grid', 'photo'])
 
 function createMemoryStorage() {
   const values = new Map()
@@ -61,8 +64,16 @@ function reportKey(thoughtId) {
   return `popby_demo_reports_${thoughtId}`
 }
 
-function publicCard(thought) {
-  return Object.fromEntries(CARD_FIELDS.map((field) => [field, thought[field]]))
+function publicCard(thought, deviceId) {
+  const appearance = normalizeCardAppearance(thought)
+  return {
+    ...Object.fromEntries(CARD_FIELDS.map((field) => [field, thought[field]])),
+    background_type: appearance.backgroundType,
+    background_color: appearance.backgroundColor,
+    font_family: appearance.fontFamily,
+    font_size: appearance.fontSize,
+    is_own: thought.device_id === deviceId,
+  }
 }
 
 export function createDemoApi({ storage } = {}) {
@@ -74,7 +85,11 @@ export function createDemoApi({ storage } = {}) {
     ...readArray(persistence, 'popby_demo_custom_locations'),
   ]
   const customThoughts = () => readArray(persistence, 'popby_demo_custom_thoughts')
-  const allThoughts = () => [...DEMO_THOUGHTS, ...customThoughts()]
+  const allThoughts = () => {
+    const deletedIds = readSet(persistence, 'popby_demo_deleted_thoughts')
+    return [...DEMO_THOUGHTS, ...customThoughts()]
+      .filter((thought) => !deletedIds.has(thought.id))
+  }
 
   return {
     getMapLocations(deviceId) {
@@ -107,7 +122,7 @@ export function createDemoApi({ storage } = {}) {
           (!mineOnly || thought.device_id === deviceId)
         )
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
-        .map(publicCard)
+        .map((thought) => publicCard(thought, deviceId))
     },
 
     unlockLocation(deviceId, locationId, userLocation) {
@@ -151,7 +166,14 @@ export function createDemoApi({ storage } = {}) {
     publishThought(input) {
       if (input.p_suburb !== 'Fitzroy') throw new Error('Awaiting unlock')
       if (!CATEGORIES.has(input.p_category)) throw new Error('Invalid category')
-      if (!BACKGROUNDS.has(input.p_background_type)) throw new Error('Invalid background')
+      const appearanceInput = {
+        background_type: input.p_background_type ?? 'solid',
+        background_color: input.p_background_color ?? 'white',
+        font_family: input.p_font_family ?? 'caveat',
+        font_size: input.p_font_size ?? 14,
+      }
+      if (!isValidCardAppearance(appearanceInput)) throw new Error('Invalid card appearance')
+      const appearance = normalizeCardAppearance(appearanceInput)
 
       const words = String(input.p_body || '').trim().split(/\s+/).filter(Boolean)
       if (words.length > 200) throw new Error('200-word maximum')
@@ -209,7 +231,10 @@ export function createDemoApi({ storage } = {}) {
         device_id: input.p_device_id,
         category: input.p_category,
         body: String(input.p_body || '').trim() || null,
-        background_type: input.p_background_type,
+        background_type: appearance.backgroundType,
+        background_color: appearance.backgroundColor,
+        font_family: appearance.fontFamily,
+        font_size: appearance.fontSize,
         image_url: input.p_image_url || null,
         music_url: String(input.p_music_url || '').trim() || null,
         hidden: false,
@@ -221,6 +246,18 @@ export function createDemoApi({ storage } = {}) {
         [...existingCustomThoughts, thought],
       )
       return thought.id
+    },
+
+    deleteThought(deviceId, thoughtId) {
+      const thought = allThoughts().find((item) =>
+        item.id === thoughtId && item.device_id === deviceId
+      )
+      if (!thought) throw new Error('Thought not found')
+
+      const deletedIds = readSet(persistence, 'popby_demo_deleted_thoughts')
+      deletedIds.add(thoughtId)
+      writeSet(persistence, 'popby_demo_deleted_thoughts', deletedIds)
+      return true
     },
 
     recordDwell(deviceId, thoughtId, milliseconds) {

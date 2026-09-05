@@ -37,6 +37,10 @@ const RAW_DEMO_THOUGHTS = [
   ['001016', 5, 7, 'Sound', 'There is a quiet pocket here between two busy streets.', 'solid', null],
 ]
 
+const DEMO_SOLID_COLORS = ['sage', 'rose', 'clay', 'blue', 'lavender']
+const DEMO_FONTS = ['caveat', 'patrick-hand', 'homemade-apple', 'island-moments']
+const DEMO_FONT_SIZES = [14, 12, 10]
+
 export const DEMO_THOUGHTS = Object.freeze(
   RAW_DEMO_THOUGHTS.map(([
     suffix,
@@ -53,6 +57,11 @@ export const DEMO_THOUGHTS = Object.freeze(
     category,
     body,
     background_type: backgroundType,
+    background_color: backgroundType === 'solid'
+      ? DEMO_SOLID_COLORS[index % DEMO_SOLID_COLORS.length]
+      : 'white',
+    font_family: DEMO_FONTS[index % DEMO_FONTS.length],
+    font_size: DEMO_FONT_SIZES[index % DEMO_FONT_SIZES.length],
     image_url: null,
     music_url: musicUrl,
     hidden: false,

@@ -84,6 +84,16 @@ export function createApi(client, { demoMode = false, storage } = {}) {
       }))
     },
 
+    deleteThought(deviceId, thoughtId) {
+      if (demo) {
+        return Promise.resolve().then(() => demo.deleteThought(deviceId, thoughtId))
+      }
+      return unwrap(requireClient(client).rpc('delete_thought', {
+        p_device_id: deviceId,
+        p_thought_id: thoughtId,
+      }))
+    },
+
     recordDwell(deviceId, thoughtId, milliseconds) {
       const cappedMilliseconds = Math.min(Math.max(Math.round(milliseconds), 0), 120000)
       if (demo) {
@@ -123,5 +133,6 @@ export const getLocationThoughts = (...args) => api.getLocationThoughts(...args)
 export const unlockLocation = (...args) => api.unlockLocation(...args)
 export const publishThought = (...args) => api.publishThought(...args)
 export const reportThought = (...args) => api.reportThought(...args)
+export const deleteThought = (...args) => api.deleteThought(...args)
 export const recordDwell = (...args) => api.recordDwell(...args)
 export const uploadThoughtPhoto = (...args) => api.uploadThoughtPhoto(...args)

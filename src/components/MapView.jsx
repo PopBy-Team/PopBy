@@ -9,15 +9,21 @@ import {
 import {
   fitMapToRadius,
   MAP_3D_VIEW,
-  getMarkerSize,
+  getMarkerPresentation,
   getViewportMode,
   getViewportWidthMeters,
 } from '../lib/geo'
 import { attachMapLongPress, disposeMap } from '../lib/mapLifecycle'
 import {
+  applyMapLabelPolicy,
+  createFarThoughtLayers,
   createPoiNameLayer,
+  createThoughtMarkerOptions,
+  refreshLocationPresentation,
   STANDARD_BASEMAP_CONFIG,
+  syncThoughtMarkerCoordinate,
 } from '../lib/mapPresentation'
+import DropCategoryFan from './DropCategoryFan'
 
 const FITZROY_CENTER = [144.9788, -37.8005]
 
@@ -45,24 +51,38 @@ export default function MapView({
   onLocationClick,
   onLongPress,
   onLockedSuburbClick,
+  onViewportModeChange,
+  userLocation,
+  dropCoordinate,
+  onDropCategorySelect,
+  onDropCancel,
 }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const markersRef = useRef(new Map())
+  const syncMarkersRef = useRef(null)
   const locationsRef = useRef(locations)
   const clickRef = useRef(onLocationClick)
-  const userLocationRef = useRef(onUserLocation)
+  const onUserLocationRef = useRef(onUserLocation)
+  const currentLocationRef = useRef(userLocation)
+  const geolocateRef = useRef(null)
   const longPressRef = useRef(onLongPress)
   const lockedClickRef = useRef(onLockedSuburbClick)
+  const viewportModeChangeRef = useRef(onViewportModeChange)
 
-  useEffect(() => { locationsRef.current = locations }, [locations])
   useEffect(() => { clickRef.current = onLocationClick }, [onLocationClick])
-  useEffect(() => { userLocationRef.current = onUserLocation }, [onUserLocation])
+  useEffect(() => { onUserLocationRef.current = onUserLocation }, [onUserLocation])
+  useEffect(() => { currentLocationRef.current = userLocation }, [userLocation])
   useEffect(() => { longPressRef.current = onLongPress }, [onLongPress])
   useEffect(() => { lockedClickRef.current = onLockedSuburbClick }, [onLockedSuburbClick])
+  useEffect(() => {
+    viewportModeChangeRef.current = onViewportModeChange
+  }, [onViewportModeChange])
 
   useEffect(() => {
     if (mapRef.current) return
+
+    let lastViewportMode = null
 
     const map = new mapboxgl.Map({
       accessToken: import.meta.env.VITE_MAPBOX_TOKEN,
@@ -86,11 +106,13 @@ export default function MapView({
       showAccuracyCircle: true,
       fitBoundsOptions: { maxZoom: 16 },
     })
+    geolocateRef.current = geolocate
     map.addControl(geolocate, 'bottom-right')
 
     geolocate.on('geolocate', (event) => {
       const coordinate = [event.coords.longitude, event.coords.latitude]
-      userLocationRef.current?.(coordinate)
+      currentLocationRef.current = coordinate
+      onUserLocationRef.current?.(coordinate)
       fitMapToRadius(map, coordinate)
     })
 
@@ -154,16 +176,7 @@ export default function MapView({
         data: toGeoJSON(locationsRef.current),
       })
 
-      map.addLayer({
-        id: 'far-thought-dots',
-        type: 'circle',
-        source: 'thought-dots',
-        paint: {
-          'circle-radius': 5,
-          'circle-color': '#272727',
-          'circle-opacity': 0.75,
-        },
-      })
+      for (const layer of createFarThoughtLayers()) map.addLayer(layer)
 
       map.on('click', 'locked-suburb-hit-area', (event) => {
         const feature = event.features?.[0]
@@ -172,7 +185,7 @@ export default function MapView({
         }
       })
 
-      map.on('click', 'far-thought-dots', (event) => {
+      map.on('click', 'far-thought-hit-area', (event) => {
         const id = event.features?.[0]?.properties?.id
         const loc = locationsRef.current.find((x) => x.location_id === id)
         if (loc) clickRef.current?.(loc)
@@ -180,21 +193,34 @@ export default function MapView({
 
       attachMapLongPress(map, (coordinate) => longPressRef.current?.(coordinate))
       syncMarkers(map)
+
+      map.on('zoomend', () => {
+        const viewportMode = getViewportMode(getViewportWidthMeters(map))
+        viewportModeChangeRef.current?.(viewportMode)
+      })
     })
 
     const syncMarkers = (currentMap = map) => {
-      if (!currentMap.isStyleLoaded()) return
-
+      const styleReady = currentMap.isStyleLoaded()
       const viewportMode = getViewportMode(getViewportWidthMeters(currentMap))
       const showMarkers = viewportMode !== 'far'
       const currentIds = new Set(locationsRef.current.map((l) => l.location_id))
 
-      if (currentMap.getLayer('far-thought-dots')) {
-        currentMap.setLayoutProperty(
-          'far-thought-dots',
-          'visibility',
-          viewportMode === 'far' ? 'visible' : 'none',
-        )
+      if (styleReady && lastViewportMode !== viewportMode) {
+        const isInitialMode = lastViewportMode === null
+        applyMapLabelPolicy(currentMap, viewportMode)
+        lastViewportMode = viewportMode
+        if (!isInitialMode) viewportModeChangeRef.current?.(viewportMode)
+      }
+
+      if (styleReady && currentMap.getLayer('far-thought-dots')) {
+        for (const layerId of ['far-thought-dots', 'far-thought-hit-area']) {
+          currentMap.setLayoutProperty(
+            layerId,
+            'visibility',
+            viewportMode === 'far' ? 'visible' : 'none',
+          )
+        }
       }
 
       for (const [id, marker] of markersRef.current.entries()) {
@@ -211,47 +237,78 @@ export default function MapView({
           el.type = 'button'
           el.className = 'thought-marker'
           el.setAttribute('aria-label', 'Open Thoughts at this location')
-          el.addEventListener('click', (e) => {
-            e.stopPropagation()
+          const openMarker = () => {
             const latest = locationsRef.current.find(
               (x) => x.location_id === loc.location_id
             )
             if (latest) clickRef.current?.(latest)
+          }
+          el.addEventListener('click', (event) => {
+            event.stopPropagation()
+            openMarker()
+          })
+          el.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return
+            event.preventDefault()
+            event.stopPropagation()
+            openMarker()
           })
 
-          marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-            .setLngLat([loc.lng, loc.lat])
+          marker = new mapboxgl.Marker(createThoughtMarkerOptions(el))
+            .setLngLat([Number(loc.lng), Number(loc.lat)])
             .addTo(currentMap)
+
+          // Mapbox assigns image semantics to Marker elements. These markers are
+          // interactive, so restore button semantics after Marker initialization.
+          el.setAttribute('role', 'button')
+          el.tabIndex = 0
 
           markersRef.current.set(loc.location_id, marker)
         }
 
         const el = marker.getElement()
-        const size = getMarkerSize(Number(loc.thought_count || 1), viewportMode)
-        el.textContent = CATEGORY_ICONS[loc.dominant_category] || '✦'
-        el.style.width = `${size}px`
-        el.style.height = `${size}px`
-        el.style.fontSize = `${Math.max(13, size * 0.55)}px`
+        syncThoughtMarkerCoordinate(marker, loc)
+        const markerPresentation = getMarkerPresentation(
+          Number(loc.thought_count || 1),
+          viewportMode,
+        )
+        el.textContent = ''
+        el.dataset.icon = CATEGORY_ICONS[loc.dominant_category] || '✨'
+        el.setAttribute(
+          'aria-label',
+          `Open ${loc.dominant_category || 'nearby'} Thoughts at this location`,
+        )
+        el.style.width = `${markerPresentation.touchSize}px`
+        el.style.height = `${markerPresentation.touchSize}px`
+        el.style.fontSize = `${markerPresentation.iconSize}px`
+        el.style.setProperty('--marker-size', `${markerPresentation.visualSize}px`)
         el.style.display = showMarkers ? 'grid' : 'none'
         el.classList.toggle('is-mine', Boolean(loc.isMine))
         el.classList.toggle('is-close', Boolean(loc.isClose))
         el.classList.toggle('is-unlocked', Boolean(loc.isUnlocked))
       }
     }
+    syncMarkersRef.current = syncMarkers
 
     map.on('move', () => syncMarkers(map))
 
-    return () => disposeMap(map, mapRef, markersRef)
+    return () => {
+      syncMarkersRef.current = null
+      geolocateRef.current = null
+      disposeMap(map, mapRef, markersRef)
+    }
   }, [])
 
   useEffect(() => {
+    locationsRef.current = locations
     const map = mapRef.current
-    if (!map?.isStyleLoaded()) return
+    if (!map) return
 
-    const source = map.getSource('thought-dots')
-    source?.setData(toGeoJSON(locations))
-
-    map.fire('move')
+    refreshLocationPresentation(
+      map,
+      toGeoJSON(locations),
+      syncMarkersRef.current,
+    )
   }, [locations])
 
   useEffect(() => {
@@ -260,5 +317,41 @@ export default function MapView({
     source?.setData(makeSuburbsGeoJSON(progress >= 1))
   }, [progress])
 
-  return <div ref={containerRef} className="map" role="region" aria-label="PopBy map" />
+  function recenter() {
+    const map = mapRef.current
+    const coordinate = currentLocationRef.current
+
+    if (map && coordinate) {
+      fitMapToRadius(map, coordinate)
+      return
+    }
+
+    geolocateRef.current?.trigger()
+  }
+
+  return (
+    <>
+      <div ref={containerRef} className="map" role="region" aria-label="PopBy map" />
+      <button
+        className="recenter-button"
+        type="button"
+        onClick={recenter}
+        aria-label="Back to my location"
+        title="Back to my location"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="5" />
+          <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+        </svg>
+      </button>
+      {dropCoordinate && (
+        <DropCategoryFan
+          map={mapRef.current}
+          coordinate={dropCoordinate}
+          onSelect={onDropCategorySelect}
+          onCancel={onDropCancel}
+        />
+      )}
+    </>
+  )
 }

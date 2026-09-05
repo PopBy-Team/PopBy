@@ -22,6 +22,7 @@ import {
   shouldShowTip,
 } from './lib/guidance'
 import { pointInsideFitzroy } from './data/suburbs'
+import { shouldDismissProgress } from './lib/mapPresentation'
 
 const EMPTY_STATS = {
   active_locations: 0,
@@ -37,13 +38,14 @@ export default function App() {
   const [mapLocations, setMapLocations] = useState([])
   const [stats, setStats] = useState(EMPTY_STATS)
   const [mineMode, setMineMode] = useState(false)
-  const [dropCoordinate, setDropCoordinate] = useState(null)
+  const [dropDraft, setDropDraft] = useState(null)
   const [thoughts, setThoughts] = useState([])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [toast, setToast] = useState('')
   const [coachTip, setCoachTip] = useState(null)
   const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingComplete())
   const [loading, setLoading] = useState(true)
+  const [progressDismissed, setProgressDismissed] = useState(false)
 
   const showToast = useCallback((message) => {
     setToast(message)
@@ -189,7 +191,7 @@ export default function App() {
       return
     }
 
-    setDropCoordinate(coordinate)
+    setDropDraft({ coordinate, category: null })
   }
 
   function completeTour() {
@@ -211,7 +213,7 @@ export default function App() {
           position: 'bottom-left',
           eyebrow: 'Try the map',
           title: 'Zoom out, then zoom back in',
-          body: 'Far away, Thoughts appear as dots. Closer in, their category icons and sizes become visible.',
+          body: 'Far away, Thoughts glow like pale-yellow fireflies. Closer in, their category icons and sizes become visible.',
         })
       }, 200)
     }
@@ -255,6 +257,12 @@ export default function App() {
       <MapView
         locations={visibleLocations}
         progress={Number(stats.progress || 0)}
+        userLocation={userLocation}
+        dropCoordinate={dropDraft && !dropDraft.category ? dropDraft.coordinate : null}
+        onDropCategorySelect={(category) => {
+          setDropDraft((current) => current ? { ...current, category } : null)
+        }}
+        onDropCancel={() => setDropDraft(null)}
         onUserLocation={(coordinate) => {
           setUserLocation(coordinate)
           if (coachTip?.key === 'locate' || coachTip?.key === 'location_required') {
@@ -264,6 +272,11 @@ export default function App() {
         onLocationClick={openLocation}
         onLongPress={handleLongPress}
         onLockedSuburbClick={showLockedSuburb}
+        onViewportModeChange={(viewportMode) => {
+          setProgressDismissed((current) =>
+            shouldDismissProgress(current, 'zoomend', viewportMode)
+          )
+        }}
       />
 
       {mapStatus && !showOnboarding && (
@@ -273,7 +286,7 @@ export default function App() {
         </div>
       )}
 
-      <ProgressCard stats={stats} />
+      <ProgressCard stats={stats} hidden={progressDismissed} />
 
       <div className="brand-mark">PopBy</div>
 
@@ -282,8 +295,14 @@ export default function App() {
         onClick={toggleMine}
         type="button"
         aria-pressed={mineMode}
+        aria-label={mineMode ? 'Show all Thoughts' : 'Show only my Thoughts'}
+        title="Mine"
       >
-        Mine
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="7" y="5" width="11" height="14" rx="2.5" />
+          <path d="M7 8H5.5A2.5 2.5 0 0 0 3 10.5v7A2.5 2.5 0 0 0 5.5 20H14" />
+        </svg>
+        <span className="sr-only">Mine</span>
       </button>
 
       <button
@@ -310,12 +329,13 @@ export default function App() {
         <OnboardingTour onComplete={completeTour} />
       )}
 
-      {dropCoordinate && (
+      {dropDraft?.category && (
         <DropComposer
-          rawCoordinate={dropCoordinate}
+          rawCoordinate={dropDraft.coordinate}
+          initialCategory={dropDraft.category}
           userLocation={userLocation}
           deviceId={deviceId}
-          onClose={() => setDropCoordinate(null)}
+          onClose={() => setDropDraft(null)}
           onPublished={async () => {
             showToast('Thought dropped')
             await refresh()
@@ -334,9 +354,12 @@ export default function App() {
         <ThoughtSheet
           thoughts={thoughts}
           deviceId={deviceId}
-          mineMode={mineMode}
           onClose={() => setSheetOpen(false)}
           onReported={refresh}
+          onDeleted={async (thoughtId) => {
+            setThoughts((current) => current.filter((thought) => thought.id !== thoughtId))
+            await refresh()
+          }}
         />
       )}
     </main>

@@ -163,14 +163,19 @@ test('a successful demo unlock persists and reopens public cards safely', async 
   assert.equal(reloadedLocations[0].is_unlocked, true)
   assert.equal(cards.length, 5)
   assert.deepEqual(Object.keys(cards[0]).sort(), [
+    'background_color',
     'background_type',
     'body',
     'category',
     'created_at',
+    'font_family',
+    'font_size',
     'id',
     'image_url',
+    'is_own',
     'music_url',
   ])
+  assert.equal(cards[0].is_own, false)
 })
 
 test('two unique demo reports hide a Thought while duplicate reports count once', async () => {
@@ -387,5 +392,48 @@ test('photo uploads reject files larger than 6 MB before contacting Storage', as
       '00000000-0000-4000-8000-000000009901',
     ),
     { message: 'Photo limit is 6 MB for this MVP.' },
+  )
+})
+
+test('deleteThought sends only the device and Thought IDs to the owner-checked RPC', async () => {
+  const client = recordingClient({ data: true, error: null })
+  const api = createApi(client)
+
+  await api.deleteThought('device-id', 'thought-id')
+
+  assert.deepEqual(client.calls[0], [
+    'delete_thought',
+    { p_device_id: 'device-id', p_thought_id: 'thought-id' },
+  ])
+})
+
+test('demo Thoughts expose ownership and only the author can delete', async () => {
+  const storage = memoryStorage()
+  const api = createApi(null, { demoMode: true, storage })
+  const author = '00000000-0000-4000-8000-000000009950'
+  const [location] = await api.getMapLocations(author)
+  const thoughtId = await api.publishThought({
+    ...demoPublishInput(author, [location.lng, location.lat], 'Mine to remove.'),
+    p_background_color: 'sage',
+    p_font_family: 'patrick-hand',
+    p_font_size: 12,
+  })
+
+  const [owned] = await api.getLocationThoughts(location.location_id, author, true)
+  assert.equal(owned.id, thoughtId)
+  assert.equal(owned.is_own, true)
+  assert.equal(owned.background_color, 'sage')
+  assert.equal(owned.font_family, 'patrick-hand')
+  assert.equal(owned.font_size, 12)
+
+  await assert.rejects(
+    () => api.deleteThought('00000000-0000-4000-8000-000000009951', thoughtId),
+    { message: 'Thought not found' },
+  )
+
+  assert.equal(await api.deleteThought(author, thoughtId), true)
+  assert.deepEqual(
+    await api.getLocationThoughts(location.location_id, author, true),
+    [],
   )
 })

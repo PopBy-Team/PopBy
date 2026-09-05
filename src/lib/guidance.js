@@ -1,6 +1,9 @@
-const GUIDE_VERSION = 'v3'
+import { CATEGORIES } from '../data/categories.js'
+
+const GUIDE_VERSION = 'v4'
 
 const onboardingKey = `popby_onboarding_${GUIDE_VERSION}`
+const firstPublishKey = 'popby_first_thought_published_v1'
 
 function tipKey(name) {
   return `popby_tip_${GUIDE_VERSION}_${name}`
@@ -19,10 +22,11 @@ export const ONBOARDING_STEPS = [
     eyebrow: 'Explore',
     title: 'Fitzroy is open.',
     body:
-      'Far away, Thoughts appear as dots. Closer in, category icons appear, and bigger icons mean more Thoughts.',
+      'Far away, Thoughts glow like pale-yellow fireflies. Closer in, category icons appear, and bigger icons mean more Thoughts.',
     note:
       'Grey suburbs await unlock. Fitzroy needs 15 active locations, 50 Thoughts, 30 contributors and 50 successful unlocks.',
     visual: '↔',
+    legend: CATEGORIES.map(({ name, icon }) => ({ name, icon })),
   },
   {
     eyebrow: 'Unlock',
@@ -89,6 +93,14 @@ export function shouldShowTip(name, storage) {
 
 export function markTipShown(name, storage) {
   getStorage(storage).setItem(tipKey(name), 'shown')
+}
+
+export function shouldShowFirstPublishHint(storage) {
+  return getStorage(storage).getItem(firstPublishKey) !== 'done'
+}
+
+export function markFirstThoughtPublished(storage) {
+  getStorage(storage).setItem(firstPublishKey, 'done')
 }
 
 export function resetGuidance(storage) {

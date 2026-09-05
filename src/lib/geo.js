@@ -11,6 +11,8 @@ export const MAP_3D_VIEW = Object.freeze({
   bearing: -18,
 })
 
+export const MOBILE_MIN_TOUCH_TARGET = 44
+
 export function distanceMeters(a, b) {
   if (!a || !b) return Infinity
   return distance(point(a), point(b), { units: 'meters' })
@@ -38,6 +40,16 @@ export function getMarkerSize(count, mode) {
   if (count <= 3) return 24
   if (count <= 9) return 32
   return 40
+}
+
+export function getMarkerPresentation(count, mode) {
+  const visualSize = getMarkerSize(count, mode)
+
+  return {
+    visualSize,
+    touchSize: MOBILE_MIN_TOUCH_TARGET,
+    iconSize: Math.max(13, Math.round(visualSize * 0.55)),
+  }
 }
 
 export function fitMapToRadius(map, coordinate, radiusKm = 0.37) {
