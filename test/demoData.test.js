@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 
 import {
   DEMO_LOCATIONS,
@@ -9,7 +10,32 @@ import {
 import { distanceMeters } from '../src/lib/geo.js'
 import { parseMusicLink } from '../src/lib/musicLink.js'
 
-const DEMO_GPS = [144.9788, -37.8005]
+const DEMO_GPS = [144.9797486703319, -37.801367209908406]
+
+test('the demo GPS stays visible beside the Whitlam Place Thought cluster', async () => {
+  const source = await readFile(new URL('../src/lib/device.js', import.meta.url), 'utf8')
+  const match = source.match(/DEMO_LOCATION\s*=\s*\[([^\]]+)\]/)
+  const configuredGps = match?.[1].split(',').map(Number)
+  assert.deepEqual(configuredGps, DEMO_GPS)
+
+  const nearbyLocations = DEMO_LOCATIONS.slice(0, 3)
+  const distances = nearbyLocations.map((location) =>
+    distanceMeters(DEMO_GPS, [location.lng, location.lat])
+  )
+  assert.ok(distances.every((distance) => distance >= 25 && distance <= 50))
+
+  for (let first = 0; first < nearbyLocations.length; first += 1) {
+    for (let second = first + 1; second < nearbyLocations.length; second += 1) {
+      assert.ok(
+        distanceMeters(
+          [nearbyLocations[first].lng, nearbyLocations[first].lat],
+          [nearbyLocations[second].lng, nearbyLocations[second].lat],
+        ) > 20,
+        'nearby seed nodes should remain distinct under the 20m merge rule',
+      )
+    }
+  }
+})
 
 test('the nearby demo cluster shows Sound, Nature, and Animals at all three size tiers', () => {
   const nearby = getDemoMapLocations('00000000-0000-4000-8000-000000002001')
@@ -40,6 +66,12 @@ test('nearby demo cards cover every appearance tier and supported BGM provider',
   assert.deepEqual(new Set(cards.map((thought) => thought.font_size)), new Set([14, 16, 18]))
   assert.ok(cards.every((thought) => thought.body?.trim().length >= 1))
   assert.ok(cards.some((thought) => thought.background_type === 'photo' && thought.image_url))
+
+  const whitlamPhoto = cards.find((thought) =>
+    thought.image_url?.includes('Gough_Whitlam_-_Its_Time_-_Whitlam_Park_or_Place.jpg')
+  )
+  assert.equal(whitlamPhoto?.category, 'Nature')
+  assert.match(whitlamPhoto?.body || '', /Photo: Star A Star · CC BY-SA 4\.0/)
 
   const providers = cards
     .filter((thought) => thought.music_url)

@@ -4,6 +4,8 @@ import assert from 'node:assert/strict'
 import { createApi } from '../src/lib/api.js'
 import { distanceMeters } from '../src/lib/geo.js'
 
+const WHITLAM_PLACE_DEMO_GPS = [144.9797486703319, -37.801367209908406]
+
 function recordingClient(result = { data: [], error: null }) {
   const calls = []
   return {
@@ -139,7 +141,7 @@ test('demo locations include three nearby size tiers plus farther exploration', 
   const api = createApi(null, { demoMode: true })
   const locations = await api.getMapLocations('demo-device')
   const distances = locations.map((location) =>
-    distanceMeters([144.9788, -37.8005], [location.lng, location.lat])
+    distanceMeters(WHITLAM_PLACE_DEMO_GPS, [location.lng, location.lat])
   )
 
   assert.equal(distances.filter((distance) => distance <= 50).length, 3)
@@ -242,10 +244,10 @@ test('a new drop creates its own Safe Anchor node even beside an existing point'
 
   const thoughtId = await api.publishThought({
     p_device_id: '00000000-0000-4000-8000-000000009001',
-    p_user_lat: -37.8005,
-    p_user_lng: 144.9788,
-    p_drop_lat: -37.8005,
-    p_drop_lng: 144.9788,
+    p_user_lat: existing.lat,
+    p_user_lng: existing.lng,
+    p_drop_lat: existing.lat,
+    p_drop_lng: existing.lng,
     p_safe_lat: existing.lat,
     p_safe_lng: existing.lng,
     p_suburb: 'Fitzroy',

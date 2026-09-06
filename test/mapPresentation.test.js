@@ -249,6 +249,15 @@ test('Thought marker CSS preserves Mapbox absolute positioning during zoom', asy
   assert.match(markerRule, /left:\s*0/)
 })
 
+test('the current-location light stays above nearby Thought markers', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const thoughtRule = css.match(/\.thought-marker\s*\{[^}]+\}/)?.[0] || ''
+  const currentRule = css.match(/\.current-location-dot\s*\{[^}]+\}/)?.[0] || ''
+
+  assert.match(thoughtRule, /z-index:\s*1/)
+  assert.match(currentRule, /z-index:\s*2/)
+})
+
 test('card icons are circular and timestamps inherit the selected card font', async () => {
   const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
   const iconRule = css.match(/\.reader-category-icon\s*\{[^}]*\}/)?.[0] || ''

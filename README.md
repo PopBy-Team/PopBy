@@ -101,8 +101,9 @@ For presentation mode:
 Add `tutorial=1` to replay the animated first-user guide without clearing other
 browser memories: `http://localhost:5173/?demo=1&tutorial=1`.
 
-Demo mode simulates GPS in central Fitzroy, so the 50m unlock/drop loop is
-presentable even when you are physically somewhere else.
+Demo mode simulates GPS on a public path in Whitlam Place, so the nearby trees
+and the 50m unlock/drop loop are presentable even when you are physically
+somewhere else.
 
 ## 5. Main interaction
 
@@ -186,3 +187,10 @@ The updated starter includes a complete first-run guidance system:
 - `?` button keeps the original 6-step reference guide and offers an animated replay
 
 See `GUIDANCE.md` for the complete trigger/copy/presentation matrix.
+
+## 9. Demo media credit
+
+The Whitlam Place tree card uses
+[`Gough Whitlam - Its Time - Whitlam Park or Place.jpg`](https://commons.wikimedia.org/wiki/File:Gough_Whitlam_-_Its_Time_-_Whitlam_Park_or_Place.jpg)
+by Star A Star under
+[`CC BY-SA 4.0`](https://creativecommons.org/licenses/by-sa/4.0/).
