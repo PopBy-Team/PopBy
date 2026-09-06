@@ -41,7 +41,16 @@ state and are never stored.
 The validator rejects regular YouTube, `youtu.be`, playlists, albums without a
 track ID, podcasts, arbitrary HTTP(S) sites, shortened links, credentials in a
 URL, and non-HTTP(S) protocols. It strips irrelevant tracking parameters where
-safe and returns the provider for display/accessibility copy.
+safe and returns the provider for internal validation and accessibility copy.
+
+Before the user types, the composer shows this quiet source hint beneath the
+BGM field:
+
+`Tracks only · Spotify, Apple Music, YouTube Music`
+
+A valid link receives no success message. Published cards keep the generic
+user-initiated action `🎵 Open BGM`; they do not name the provider or imply that
+the track plays inside PopBy.
 
 Validation runs in the composer, demo API, and Supabase `publish_thought` RPC.
 Existing cards remain readable. Invalid new input displays exactly:
@@ -52,6 +61,34 @@ The fallback means the user can type a track name in the Thought body. An
 allowlist materially reduces arbitrary-link and phishing risk, but it is not a
 guarantee that every song is suitable. Existing report/hide moderation remains
 the abuse backstop.
+
+## Area-agnostic onboarding and instructions
+
+Guidance describes the product in terms of the area currently open on the map,
+not Fitzroy specifically, so the same copy remains correct as new suburbs open.
+The onboarding makes both sides of the product loop explicit: people can
+explore Thoughts nearby and create their own whenever they want.
+
+The key onboarding copy is:
+
+- Welcome title: `Notice what’s already around you.`
+- Welcome body:
+  `Explore Thoughts around you. Create one right where you are, whenever you feel like it.`
+- Explore title: `Explore Thoughts`
+- Explore body:
+  `Zoom in, move within 50m, then tap a marker to explore the Thoughts left there.`
+- Explore note:
+  `Bright areas are open to explore. Grey areas are waiting to be unlocked.`
+- Create title: `Create a Thought`
+- Create body:
+  `Long-press a nearby public path or an existing Thought location inside any open area. Choose a category, then create your card.`
+- Create note:
+  `Optional BGM accepts Spotify, Apple Music and YouTube Music track links only.`
+
+Existing anonymous identity, unlock, privacy, and Mine explanations remain,
+but any launch-area-specific wording becomes dynamic or generic. The user-facing
+verb is `Create`, not `Drop`, except where existing data or internal function
+names retain `drop` for compatibility.
 
 ## Map chrome and area identity
 
@@ -150,8 +187,12 @@ raw and safe coordinates so the database rechecks the 50m and 60m rules.
 - The top-left category control uses a true circular background.
 - The BGM field uses a fixed `🎵` icon.
 - `Pick BGM` is a 10pt-equivalent light-grey placeholder.
+- Before input, the inline source hint is exactly:
+  `Tracks only · Spotify, Apple Music, YouTube Music`
+- Valid input produces no confirmation message.
 - Invalid/unsupported BGM copy is exactly:
   `Invalid link. Or enter track name in box above.`
+- Published cards use the generic label `🎵 Open BGM` with no provider name.
 - Keep the current send icon, category switcher, 150-word limit, live-camera
   background, appearance tools, privacy validation, and inline error style.
 
