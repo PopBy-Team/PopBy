@@ -10,6 +10,7 @@ import {
   MUSIC_LINK_MAX_LENGTH,
   THOUGHT_WORD_LIMIT,
   countWords,
+  hasThoughtText,
 } from './contentRules.js'
 import { normalizeMusicLink } from './musicLink.js'
 
@@ -176,11 +177,14 @@ export function createDemoApi({ storage } = {}) {
         background_type: input.p_background_type ?? 'solid',
         background_color: input.p_background_color ?? 'white',
         font_family: input.p_font_family ?? 'caveat',
-        font_size: input.p_font_size ?? 12,
+        font_size: input.p_font_size ?? 14,
       }
       if (!isValidCardAppearance(appearanceInput)) throw new Error('Invalid card appearance')
       const appearance = normalizeCardAppearance(appearanceInput)
 
+      if (!hasThoughtText(input.p_body)) {
+        throw new Error('Thought text is required')
+      }
       if (countWords(input.p_body) > THOUGHT_WORD_LIMIT) {
         throw new Error('150-word maximum')
       }
@@ -215,14 +219,6 @@ export function createDemoApi({ storage } = {}) {
           distanceMeters(safe, [item.lng, item.lat]) <= 20
         )
         if (!location) throw new Error('Selected location is no longer available')
-      } else {
-        location = allLocations()
-          .map((item) => ({
-            item,
-            distance: distanceMeters(safe, [item.lng, item.lat]),
-          }))
-          .filter(({ distance }) => distance <= 20)
-          .sort((a, b) => a.distance - b.distance)[0]?.item
       }
 
       if (!location) {
@@ -248,7 +244,7 @@ export function createDemoApi({ storage } = {}) {
         location_id: location.id,
         device_id: input.p_device_id,
         category: input.p_category,
-        body: String(input.p_body || '').trim() || null,
+        body: String(input.p_body).trim(),
         background_type: appearance.backgroundType,
         background_color: appearance.backgroundColor,
         font_family: appearance.fontFamily,

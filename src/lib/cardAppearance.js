@@ -19,9 +19,9 @@ export const FONT_OPTIONS = Object.freeze([
 ])
 
 export const FONT_SIZE_OPTIONS = Object.freeze([
-  { value: 16, label: '16 pt' },
-  { value: 14, label: '14 pt' },
-  { value: 12, label: '12 pt' },
+  { value: 14, label: 'Small · 14 pt' },
+  { value: 16, label: 'Medium · 16 pt' },
+  { value: 18, label: 'Big · 18 pt' },
 ])
 
 export const BACKGROUND_TYPES = Object.freeze(['solid', 'lined', 'grid', 'dots', 'photo'])
@@ -42,7 +42,7 @@ export function normalizeCardAppearance(input = {}) {
     backgroundType: BACKGROUND_TYPE_VALUES.has(requestedType) ? requestedType : 'solid',
     backgroundColor: BACKGROUND_COLOR_VALUES.has(requestedColor) ? requestedColor : 'white',
     fontFamily: FONT_VALUES.has(requestedFont) ? requestedFont : 'caveat',
-    fontSize: FONT_SIZE_VALUES.has(requestedSize) ? requestedSize : 12,
+    fontSize: FONT_SIZE_VALUES.has(requestedSize) ? requestedSize : 14,
   }
 }
 
@@ -51,12 +51,16 @@ export function isValidCardAppearance(input = {}) {
   const requestedType = input.backgroundType ?? input.background_type ?? 'solid'
   const requestedColor = input.backgroundColor ?? input.background_color ?? 'white'
   const requestedFont = input.fontFamily ?? input.font_family ?? 'caveat'
-  const requestedSize = Number(input.fontSize ?? input.font_size ?? 12)
+  const requestedSize = Number(input.fontSize ?? input.font_size ?? 14)
 
   return normalized.backgroundType === requestedType &&
     normalized.backgroundColor === requestedColor &&
     normalized.fontFamily === requestedFont &&
     normalized.fontSize === requestedSize
+}
+
+export function isComposerTextLocked(activeTool) {
+  return activeTool === 'background' || activeTool === 'font' || activeTool === 'size'
 }
 
 export function backgroundOptionToAppearance(option) {

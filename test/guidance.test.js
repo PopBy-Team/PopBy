@@ -13,6 +13,7 @@ import {
   markFirstThoughtPublished,
   shouldShowFirstPublishHint,
 } from '../src/lib/guidance.js'
+import * as guidance from '../src/lib/guidance.js'
 
 function memoryStorage() {
   const values = new Map()
@@ -24,34 +25,19 @@ function memoryStorage() {
   }
 }
 
-test('onboarding contains the six required product lessons', () => {
+test('onboarding keeps the user-authored product lessons', () => {
   assert.equal(ONBOARDING_STEPS.length, 6)
   assert.deepEqual(
     ONBOARDING_STEPS.map((step) => step.eyebrow),
     ['Welcome to PopBy', 'Explore', 'Unlock', 'Create', 'Privacy', 'Mine'],
   )
-  assert.equal(
-    ONBOARDING_STEPS[0].body,
-    'Explore Thoughts around you. Create one right where you are, whenever you feel like it.',
+  assert.match(ONBOARDING_STEPS[0].body, /right where you are, whenever you feel like it/i)
+  assert.equal(ONBOARDING_STEPS[1].legend.length, 7)
+  assert.deepEqual(
+    ONBOARDING_STEPS[1].legend.map(({ name, icon }) => `${name}:${icon}`),
+    ['Animals:🐾', 'Nature:🌳', 'Eat:🍴', 'Art:🎨', 'Place:📍', 'Sound:🎵', 'Moment:✨'],
   )
-  assert.match(ONBOARDING_STEPS[4].body, /building check/i)
-  assert.match(ONBOARDING_STEPS[4].body, /safer path\/street anchor/i)
-  assert.match(ONBOARDING_STEPS[4].note, /raw point.*not stored/i)
-  assert.deepEqual(ONBOARDING_STEPS[1].legend, [
-    { name: 'Animals', icon: '🐾' },
-    { name: 'Nature', icon: '🌳' },
-    { name: 'Eat', icon: '🍴' },
-    { name: 'Art', icon: '🎨' },
-    { name: 'Place', icon: '📍' },
-    { name: 'Sound', icon: '🎵' },
-    { name: 'Moment', icon: '✨' },
-  ])
-  assert.equal(ONBOARDING_STEPS[1].title, 'Explore Thoughts')
-  assert.match(ONBOARDING_STEPS[1].body, /within 50m/i)
-  assert.doesNotMatch(
-    `${ONBOARDING_STEPS[1].title} ${ONBOARDING_STEPS[1].body} ${ONBOARDING_STEPS[1].note}`,
-    /Fitzroy/i,
-  )
+  assert.match(ONBOARDING_STEPS[3].note, /at least one character/i)
 })
 
 test('onboarding completion and coach tips persist until reset', () => {
@@ -128,12 +114,18 @@ test('drop rules remain visible until the first Thought publishes successfully',
   assert.equal(shouldShowFirstPublishHint(storage), false)
 })
 
-test('Create guidance explains nearby points, limits, and supported BGM sources', () => {
+test('Create guidance explains nearby creation and hourly limits', () => {
   const create = ONBOARDING_STEPS.find((step) => step.eyebrow === 'Create')
-  assert.equal(create.title, 'Create a Thought')
-  assert.match(`${create.body} ${create.note}`, /existing Thought location/i)
-  assert.match(`${create.body} ${create.note}`, /150/)
-  assert.match(create.note, /Spotify, Apple Music and YouTube Music/i)
+  assert.match(create.body, /nearby public path/i)
+  assert.match(create.note, /5 per hour/i)
+})
+
+test('locked areas use only the concise not-open-yet message', () => {
+  assert.equal(typeof guidance.getLockedAreaTip, 'function')
+  assert.deepEqual(guidance.getLockedAreaTip('Carlton'), {
+    position: 'top-left',
+    title: 'Carlton isn’t open yet',
+  })
 })
 
 test('an unavailable selected node receives friendly copy', () => {

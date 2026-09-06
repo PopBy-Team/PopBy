@@ -7,10 +7,10 @@ import {
   getFanPresentationTarget,
 } from '../src/lib/categoryFan.js'
 
-test('seven category bubbles form a compact ordered arc above the drop pin', () => {
+test('seven category bubbles form an evenly spaced non-overlapping arc above the drop pin', () => {
   const positions = getCategoryFanPositions(7, {
-    radiusX: 132,
-    radiusY: 88,
+    radiusX: 124,
+    radiusY: 124,
     direction: 'up',
   })
 
@@ -20,18 +20,27 @@ test('seven category bubbles form a compact ordered arc above the drop pin', () 
     index === 0 || item.x > positions[index - 1].x
   ))
   assert.equal(positions[3].y, Math.min(...positions.map(({ y }) => y)))
-  assert.ok(positions.every(({ y }) => Math.abs(y) <= 88))
+  assert.ok(positions.every(({ y }) => Math.abs(y) <= 124))
+  const gaps = []
   for (let index = 1; index < positions.length; index += 1) {
-    assert.ok(Math.hypot(
+    gaps.push(Math.hypot(
       positions[index].x - positions[index - 1].x,
       positions[index].y - positions[index - 1].y,
-    ) >= 44)
+    ))
   }
+  assert.ok(Math.min(...gaps) >= 52)
+  assert.ok(Math.max(...gaps) - Math.min(...gaps) <= 1.5)
 })
 
-test('the default fan stays within a shallow one-fifth-phone arc', () => {
+test('the default fan remains compact enough for a phone', () => {
   const positions = getCategoryFanPositions(7)
-  assert.ok(positions.every(({ y }) => Math.abs(y) <= 88))
+  assert.ok(positions.every(({ y }) => Math.abs(y) <= 124))
+  const gaps = positions.slice(1).map((item, index) => Math.hypot(
+    item.x - positions[index].x,
+    item.y - positions[index].y,
+  ))
+  assert.ok(Math.min(...gaps) >= 52)
+  assert.ok(Math.max(...gaps) - Math.min(...gaps) <= 1.5)
 })
 
 test('an empty category list produces no fan coordinates', () => {

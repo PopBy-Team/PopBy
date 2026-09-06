@@ -4,7 +4,7 @@ import { deleteThought, recordDwell, reportThought } from '../lib/api'
 import { markTipShown, shouldShowTip } from '../lib/guidance'
 import { CATEGORY_ICONS } from '../data/categories'
 import { cardAppearanceClassNames } from '../lib/cardAppearance'
-import { getSwipeDirection } from '../lib/swipe'
+import { getTapDirection } from '../lib/swipe'
 import {
   advanceSwipeIndicator,
   formatThoughtTimestamp,
@@ -114,7 +114,7 @@ export default function ThoughtSheet({
     >
       {showCardGuide && (
         <div className="swipe-hint">
-          <span>Newest first · swipe left or right</span>
+          <span>Newest first · tap either side</span>
           <button type="button" onClick={dismissCardGuide}>Got it</button>
         </div>
       )}
@@ -129,11 +129,17 @@ export default function ThoughtSheet({
           }}
           onPointerUp={(event) => {
             if (!touchStart.current) return
-            const direction = getSwipeDirection({
+            if (event.target.closest?.('button, a, input, textarea, [role="menu"]')) {
+              touchStart.current = null
+              return
+            }
+            const bounds = event.currentTarget.getBoundingClientRect()
+            const direction = getTapDirection({
               startX: touchStart.current.x,
               startY: touchStart.current.y,
               endX: event.clientX,
               endY: event.clientY,
+              centerX: bounds.left + (bounds.width / 2),
             })
             if (direction === 'next') next()
             if (direction === 'previous') previous()

@@ -366,7 +366,7 @@ export default function MapView({
         const markerState = getThoughtMarkerState(loc)
         el.classList.toggle('is-mine', markerState.isMine)
         el.classList.toggle('is-close', markerState.isClose)
-        el.classList.toggle('is-unlocked', markerState.isUnlocked)
+        el.classList.toggle('is-viewed', markerState.isViewed)
       }
     }
     syncMarkersRef.current = syncMarkers

@@ -75,13 +75,13 @@ test('far Thought dots glow like warm amber fireflies inside a finger-sized hit 
   assert.ok(hitLayer.paint['circle-opacity'] <= 0.01)
 })
 
-test('own Thoughts keep their category appearance while explored points dim', async () => {
+test('own Thoughts keep their category appearance while explored points use a viewed state', async () => {
   const { getThoughtMarkerState } = await loadPresentation()
 
   assert.deepEqual(getThoughtMarkerState({ isMine: true, isClose: true }), {
     isMine: true,
     isClose: true,
-    isUnlocked: false,
+    isViewed: false,
   })
   assert.deepEqual(getThoughtMarkerState({
     isMine: true,
@@ -90,7 +90,7 @@ test('own Thoughts keep their category appearance while explored points dim', as
   }), {
     isMine: true,
     isClose: false,
-    isUnlocked: true,
+    isViewed: true,
   })
 })
 
@@ -251,14 +251,26 @@ test('Thought marker CSS preserves Mapbox absolute positioning during zoom', asy
   assert.match(markerRule, /left:\s*0/)
 })
 
-test('marker CSS has no blue Mine glow and gives unlocked markers a quiet fill', async () => {
+test('viewed marker CSS keeps icons opaque and gives them a darker quiet fill', async () => {
   const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
   const mineRule = css.match(/\.thought-marker\.is-mine::before\s*\{[^}]*\}/)?.[0] || ''
-  const unlockedRule = css.match(/\.thought-marker\.is-unlocked::before\s*\{[^}]*\}/)?.[0] || ''
+  const viewedRule = css.match(/\.thought-marker\.is-viewed::before\s*\{[^}]*\}/)?.[0] || ''
 
   assert.doesNotMatch(mineRule, /161,\s*222,\s*255/)
-  assert.match(unlockedRule, /background:\s*rgba\(/)
-  assert.doesNotMatch(unlockedRule, /border:\s*2px/)
+  assert.match(viewedRule, /background:\s*rgba\(/)
+  assert.doesNotMatch(viewedRule, /opacity\s*:/)
+  assert.doesNotMatch(viewedRule, /border:\s*2px/)
+})
+
+test('card icons are circular and timestamps inherit the selected card font', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const iconRule = css.match(/\.reader-category-icon\s*\{[^}]*\}/)?.[0] || ''
+  const readerTimeRule = css.match(/(?:^|\n)\.reader-card-time\s*\{[^}]*\}/)?.[0] || ''
+  const composerTimeRule = css.match(/(?:^|\n)\.composer-card-time\s*\{[^}]*\}/)?.[0] || ''
+
+  assert.match(iconRule, /border-radius:\s*50%/)
+  assert.match(readerTimeRule, /font-family:\s*var\(--thought-font/)
+  assert.match(composerTimeRule, /font-family:\s*var\(--thought-font/)
 })
 
 test('landscape reader card leaves room for the Add button inside the viewport', async () => {

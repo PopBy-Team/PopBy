@@ -1,6 +1,6 @@
 export function getCategoryFanPositions(
   count,
-  { radiusX = 132, radiusY = 88, direction = 'up' } = {},
+  { radiusX = 124, radiusY = 124, direction = 'up' } = {},
 ) {
   if (!Number.isInteger(count) || count <= 0) return []
   const directionSign = direction === 'down' ? -1 : 1

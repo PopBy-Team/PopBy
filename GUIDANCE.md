@@ -15,12 +15,12 @@ The UI uses three levels of guidance:
 | First open | Learns progress | 15 locations / 50 Thoughts / 30 contributors / 50 unlocks | Onboarding + simple progress bar |
 | First open | Location | Tap ◎; location is needed for 50m rules | Bottom-right coach tip |
 | Map | Pan / zoom | Dots far away; category icons closer in | Onboarding + one-time map coach |
-| Locked suburb | Tap grey suburb | “Awaiting unlock” + exact four thresholds | Top-left coach tip |
+| Locked suburb | Tap grey suburb | “This area isn’t open yet” | Top-left coach tip |
 | Thought | Tap while >120m | “Get closer — unlocks within 50m” | Center coach tip |
 | Thought | Tap at 50–120m | “Approaching…” | Center coach tip |
 | Thought | Tap ≤50m | Unlocks | Icon glow + card opens |
-| Card | First card | Latest first; swipe; ••• reports | Inline guide inside sheet |
-| Card | Swipe | Browse deck | “Swipe” control remains |
+| Card | First card | Latest first; tap either side; ••• reports | Inline guide inside sheet |
+| Card | Light tap | Tap the left/right half to browse the deck | Three-dot affordance animates |
 | Report | Tap ••• | 1 report/device; 2 unique reports hide | Inline confirmation |
 | Create | Long-press without GPS | Location needed | Bottom-right coach |
 | Create | Long-press outside the active area | Create only inside the open area | Center coach |
@@ -29,10 +29,10 @@ The UI uses three levels of guidance:
 | Composer | Category | Explain first step | Inline step label |
 | Composer | Background | Photo or note background | Inline step label |
 | Composer | Photo | Current-scene photo; max 6MB | Inline helper |
-| Composer | Text | Optional; max 150 words | Counter |
+| Composer | Text | At least one visible character; max 150 words | Counter + inline error |
 | Composer | Pick BGM | Optional individual Spotify, Apple Music or YouTube Music track link; max 300 characters | Source hint while empty; exact inline error only when invalid |
 | Composer | Safe anchor moved | Moved to the nearest street · public paths work best. | Brief auto-dismiss bubble |
-| Composer | Privacy | building check + safer path + ~20m merge; raw point not stored | Expandable disclosure |
+| Composer | Privacy | building check + safer path; raw point not stored; reuse only when an existing marker was held | Brief moved-anchor bubble |
 | Publish | Device limit hit | Explain 5/hour rolling window | Inline error |
 | Publish | Location limit hit | Explain 3/hour same location | Inline error |
 | Publish | No safe anchor | Move closer to a public street/path | Inline error |

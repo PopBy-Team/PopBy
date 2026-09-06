@@ -89,11 +89,11 @@ export function createFarThoughtLayers() {
 }
 
 export function getThoughtMarkerState(location = {}) {
-  const isUnlocked = Boolean(location.isUnlocked)
+  const isViewed = Boolean(location.isUnlocked)
   return {
     isMine: Boolean(location.isMine),
-    isClose: Boolean(location.isClose) && !isUnlocked,
-    isUnlocked,
+    isClose: Boolean(location.isClose) && !isViewed,
+    isViewed,
   }
 }
 

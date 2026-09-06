@@ -19,31 +19,31 @@ export const DEMO_LOCATIONS = Object.freeze([
 ])
 
 const RAW_DEMO_THOUGHTS = [
-  ['001001', 0, 0, 'Nature', 'The plane trees are turning the footpath into moving shade.', 'lined', null, null],
-  ['001002', 0, 1, 'Nature', 'Tiny green shoots found the crack beside the bluestone.', 'solid', 'https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp', null],
-  ['001003', 1, 2, 'Art', 'A blue face appeared overnight between two old posters.', 'grid', null, null],
-  ['001004', 1, 3, 'Art', 'The paint drips are better than the finished mural.', 'solid', 'https://music.apple.com/au/song/dreams/1440768234', null],
-  ['001005', 1, 4, 'Art', 'Someone added one gold line and stopped at exactly the right moment.', 'dots', null, null],
-  ['001006', 1, 5, 'Place', 'Look up: the balcony brackets are little iron flowers.', 'lined', null, null],
-  ['001007', 1, 6, 'Moment', 'Late sun caught the windows and made the whole lane blink.', 'photo', null, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80'],
-  ['001008', 2, 7, 'Eat', 'Warm cardamom drifted all the way to the crossing.', 'solid', null, null],
-  ['001009', 2, 0, 'Eat', 'The last table outside catches the soft afternoon sun.', 'lined', null, null],
-  ['001010', 2, 1, 'Eat', 'A tiny window is handing out something crisp and excellent.', 'grid', null, null],
-  ['001011', 2, 2, 'Eat', null, 'dots', 'https://music.youtube.com/watch?v=dQw4w9WgXcQ', null],
+  ['001001', 0, 0, 'Sound', 'Leaves whisper against the awning whenever the tram passes.', 'lined', null, null],
+  ['001002', 0, 1, 'Sound', 'A bicycle bell keeps landing on the same bright note.', 'solid', 'https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp', null],
+  ['001003', 1, 2, 'Nature', 'A fern is unfolding from the darkest crack in the wall.', 'grid', null, null],
+  ['001004', 1, 3, 'Nature', 'The plane-tree shadows move faster than the afternoon crowd.', 'solid', 'https://music.apple.com/au/song/dreams/1440768234', null],
+  ['001005', 1, 4, 'Nature', 'New leaves made one tiny green window above the lane.', 'dots', null, null],
+  ['001006', 1, 5, 'Nature', 'Rain is still balancing along the edge of every leaf.', 'lined', null, null],
+  ['001007', 1, 6, 'Nature', 'Late sun turned the whole canopy briefly gold.', 'photo', null, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80'],
+  ['001008', 2, 7, 'Animals', 'A magpie is rehearsing beside the crossing.', 'solid', null, null],
+  ['001009', 2, 0, 'Animals', 'The smallest dog here has chosen the biggest stick.', 'lined', null, null],
+  ['001010', 2, 1, 'Animals', 'Two pigeons are taking turns guarding this doorway.', 'grid', null, null],
+  ['001011', 2, 2, 'Animals', 'A sleepy greyhound stopped exactly where the music starts.', 'dots', 'https://music.youtube.com/watch?v=dQw4w9WgXcQ', null],
   ['001012', 2, 3, 'Nature', 'Rain is holding in the leaves even though the sky cleared.', 'solid', null, null],
   ['001013', 2, 4, 'Animals', 'A terrier is inspecting every doorway like a tiny mayor.', 'photo', null, 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80'],
   ['001014', 2, 5, 'Sound', 'Coffee cups, tram bells, and one very patient magpie.', 'lined', 'https://open.spotify.com/track/0ofHAoxe9vBkTCp2UQIavz', null],
   ['001015', 2, 6, 'Place', 'This corner feels like a pause between errands.', 'grid', null, null],
   ['001016', 2, 7, 'Moment', 'Someone held the door for three strangers in a row.', 'solid', 'https://music.apple.com/au/album/rumours/1440857781?i=1440857798', null],
   ['001017', 2, 0, 'Eat', 'Keep walking until the toasted sesame smell wins.', 'solid', null, null],
-  ['001018', 3, 1, 'Animals', 'A magpie is supervising the bike rack.', 'solid', null, null],
-  ['001019', 4, 2, 'Place', 'The old brick changes colour whenever a cloud passes.', 'grid', null, null],
+  ['001018', 3, 1, 'Art', 'A hand-painted sign makes the bike rack look like part of the mural.', 'solid', null, null],
+  ['001019', 4, 2, 'Eat', 'Toasted sesame drifts past the old brick whenever the door opens.', 'grid', null, null],
   ['001020', 5, 3, 'Sound', 'There is a quiet pocket here between two busy streets.', 'lined', null, null],
 ]
 
 const DEMO_SOLID_COLORS = ['sage', 'rose', 'clay', 'blue', 'lavender']
 const DEMO_FONTS = ['caveat', 'patrick-hand', 'homemade-apple', 'island-moments']
-const DEMO_FONT_SIZES = [16, 14, 12]
+const DEMO_FONT_SIZES = [14, 16, 18]
 
 export const DEMO_THOUGHTS = Object.freeze(
   RAW_DEMO_THOUGHTS.map(([

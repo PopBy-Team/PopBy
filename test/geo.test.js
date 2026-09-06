@@ -83,7 +83,7 @@ test('fitMapToRadius fits a map around the requested coordinate', () => {
   const coordinate = [144.9788, -37.8005]
   fitMapToRadius(map, coordinate)
 
-  assert.equal(CURRENT_LOCATION_FOCUS_RADIUS_KM, 0.2)
+  assert.equal(CURRENT_LOCATION_FOCUS_RADIUS_KM, 0.15)
   assert.equal(EXPANDED_AREA_FOCUS_RADIUS_KM, 0.4)
 
   assert.equal(typeof geo.MAP_3D_VIEW, 'object')

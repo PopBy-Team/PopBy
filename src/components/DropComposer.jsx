@@ -11,6 +11,7 @@ import {
   MUSIC_LINK_MAX_LENGTH,
   THOUGHT_WORD_LIMIT,
   countWords,
+  hasThoughtText,
 } from '../lib/contentRules'
 import {
   BGM_INVALID_COPY,
@@ -24,6 +25,7 @@ import {
   FONT_SIZE_OPTIONS,
   backgroundOptionToAppearance,
   cardAppearanceClassNames,
+  isComposerTextLocked,
 } from '../lib/cardAppearance'
 import LiveCamera from './LiveCamera'
 
@@ -46,7 +48,7 @@ export default function DropComposer({
   const [backgroundType, setBackgroundType] = useState('solid')
   const [backgroundColor, setBackgroundColor] = useState('white')
   const [fontFamily, setFontFamily] = useState('caveat')
-  const [fontSize, setFontSize] = useState(12)
+  const [fontSize, setFontSize] = useState(14)
   const [category, setCategory] = useState(initialCategory)
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
   const [body, setBody] = useState('')
@@ -69,6 +71,7 @@ export default function DropComposer({
     fontSize,
   })
   const selectedBackgroundValue = backgroundValue(backgroundType, backgroundColor)
+  const textEntryLocked = isComposerTextLocked(activeTool)
 
   useEffect(() => {
     if (!photo) {
@@ -88,8 +91,20 @@ export default function DropComposer({
     return () => window.clearTimeout(timer)
   }, [showAnchorNotice])
 
+  useEffect(() => {
+    if (textEntryLocked) document.activeElement?.blur?.()
+  }, [textEntryLocked])
+
   async function publish() {
     setError(null)
+
+    if (!hasThoughtText(body)) {
+      setError({
+        title: 'Write one small thing',
+        body: 'Thought text is required. Add at least one character before sending.',
+      })
+      return
+    }
 
     if (words > THOUGHT_WORD_LIMIT) {
       setError({
@@ -135,7 +150,7 @@ export default function DropComposer({
         p_safe_lng: safeLng,
         p_suburb: 'Fitzroy',
         p_category: category,
-        p_body: body.trim() || null,
+        p_body: body.trim(),
         p_background_type: backgroundType,
         p_background_color: backgroundColor,
         p_font_family: fontFamily,
@@ -254,6 +269,7 @@ export default function DropComposer({
             onChange={(event) => setBody(event.target.value)}
             placeholder="You’re marking your spot…"
             aria-label="Thought text"
+            readOnly={textEntryLocked}
             autoFocus
           />
           <span className={words > THOUGHT_WORD_LIMIT ? 'composer-word-count danger' : 'composer-word-count'}>
@@ -277,6 +293,7 @@ export default function DropComposer({
             aria-describedby="composer-bgm-help"
             inputMode="url"
             maxLength={MUSIC_LINK_MAX_LENGTH}
+            readOnly={textEntryLocked}
           />
         </label>
         {(musicFeedback || !musicUrl.trim()) && (
@@ -294,7 +311,7 @@ export default function DropComposer({
         {error && (
           <div className="composer-error" role="alert">
             <strong>{error.title}</strong>
-            <span>{error.body}</span>
+            {error.body && <span>{error.body}</span>}
           </div>
         )}
 
@@ -313,7 +330,11 @@ export default function DropComposer({
                   onClick={() => selectBackground(option)}
                   aria-label={option.label}
                 >
-                  <span className={`background-swatch swatch-${option.value}`} aria-hidden="true" />
+                  {option.type === 'photo' ? (
+                    <span className={`background-swatch swatch-${option.value}`} aria-hidden="true">📷</span>
+                  ) : (
+                    <span className={`background-swatch swatch-${option.value}`} aria-hidden="true" />
+                  )}
                   <small>{option.label}</small>
                 </button>
               ))}

@@ -8,13 +8,14 @@ import {
   cardAppearanceClassNames,
   normalizeCardAppearance,
 } from '../src/lib/cardAppearance.js'
+import * as appearance from '../src/lib/cardAppearance.js'
 
-test('card appearance defaults to white Caveat at 12pt', () => {
+test('card appearance defaults to white Caveat at the small 14pt size', () => {
   assert.deepEqual(normalizeCardAppearance({}), {
     backgroundType: 'solid',
     backgroundColor: 'white',
     fontFamily: 'caveat',
-    fontSize: 12,
+    fontSize: 14,
   })
 })
 
@@ -39,7 +40,11 @@ test('appearance menus expose the exact paper, Morandi, font, and size choices',
     FONT_OPTIONS.map(({ value }) => value),
     ['caveat', 'patrick-hand', 'homemade-apple', 'island-moments'],
   )
-  assert.deepEqual(FONT_SIZE_OPTIONS.map(({ value }) => value), [16, 14, 12])
+  assert.deepEqual(FONT_SIZE_OPTIONS, [
+    { value: 14, label: 'Small · 14 pt' },
+    { value: 16, label: 'Medium · 16 pt' },
+    { value: 18, label: 'Big · 18 pt' },
+  ])
 })
 
 test('invalid persisted appearance values fall back to safe mobile defaults', () => {
@@ -52,11 +57,21 @@ test('invalid persisted appearance values fall back to safe mobile defaults', ()
     backgroundType: 'solid',
     backgroundColor: 'white',
     fontFamily: 'caveat',
-    fontSize: 12,
+    fontSize: 14,
   })
 })
 
-test('persisted 10pt cards normalize to the new readable default', () => {
-  assert.equal(normalizeCardAppearance({ font_size: 10 }).fontSize, 12)
+test('legacy font sizes normalize to the new readable default', () => {
+  assert.equal(normalizeCardAppearance({ font_size: 10 }).fontSize, 14)
+  assert.equal(normalizeCardAppearance({ font_size: 12 }).fontSize, 14)
   assert.equal(normalizeCardAppearance({ font_size: 16 }).fontSize, 16)
+  assert.equal(normalizeCardAppearance({ font_size: 18 }).fontSize, 18)
+})
+
+test('style menus temporarily lock text entry until a choice closes them', () => {
+  assert.equal(typeof appearance.isComposerTextLocked, 'function')
+  assert.equal(appearance.isComposerTextLocked(null), false)
+  assert.equal(appearance.isComposerTextLocked('background'), true)
+  assert.equal(appearance.isComposerTextLocked('font'), true)
+  assert.equal(appearance.isComposerTextLocked('size'), true)
 })

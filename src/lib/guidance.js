@@ -1,6 +1,6 @@
 import { CATEGORIES } from '../data/categories.js'
 
-const GUIDE_VERSION = 'v5'
+const GUIDE_VERSION = 'v6'
 
 const onboardingKey = `popby_onboarding_${GUIDE_VERSION}`
 const firstPublishKey = 'popby_first_thought_published_v1'
@@ -25,7 +25,7 @@ export const ONBOARDING_STEPS = [
     body:
       'Zoom in, move within 50m, then tap a marker to explore the Thoughts left there. Zoomed out, markers become warm firefly dots; closer in, their category icons and sizes appear.',
     note:
-      'Bright areas are open to explore. Grey areas are waiting to be unlocked.',
+      'Bright areas are open to explore. Grey areas are not open yet.',
     visual: '↔',
     legend: CATEGORIES.map(({ name, icon }) => ({ name, icon })),
   },
@@ -43,14 +43,14 @@ export const ONBOARDING_STEPS = [
     body:
       'Long-press a nearby public path or an existing Thought location inside any open area. Choose a category, then create your card.',
     note:
-      'Up to 150 words. Optional BGM accepts Spotify, Apple Music and YouTube Music track links only. Limits: 5 per hour, 3 per location.',
+      'Write at least one character, up to 150 words. BGM is optional. Limits: 5 per hour, 3 per location.',
     visual: '＋',
   },
   {
     eyebrow: 'Privacy',
     title: 'Your exact drop point isn’t published.',
     body:
-      'PopBy uses a building check, a nearby safer path/street anchor, then a shared ~20m location node.',
+      'PopBy checks for buildings and moves a new Thought to a nearby safer path or street. An existing point is reused only when you hold its marker.',
     note: 'Your raw point is used for validation and is not stored.',
     visual: '⌁',
   },
@@ -130,6 +130,13 @@ export function getMapStatus({ loading, mineMode, locationCount }) {
   return null
 }
 
+export function getLockedAreaTip(name) {
+  return {
+    position: 'top-left',
+    title: `${name} isn’t open yet`,
+  }
+}
+
 export function friendlyPublishError(message = '') {
   if (message.includes('Hourly drop limit reached')) {
     return {
@@ -154,8 +161,8 @@ export function friendlyPublishError(message = '') {
 
   if (message.includes('Awaiting unlock')) {
     return {
-      title: 'Area not open yet',
-      body: 'For this MVP, new Thoughts can only be dropped inside the currently unlocked Fitzroy area.',
+      title: 'This area isn’t open yet',
+      body: '',
     }
   }
 
@@ -170,6 +177,13 @@ export function friendlyPublishError(message = '') {
     return {
       title: '200-word maximum',
       body: 'Shorten this Thought before dropping it.',
+    }
+  }
+
+  if (message.includes('Thought text is required')) {
+    return {
+      title: 'Write one small thing',
+      body: 'Add at least one character before sending this Thought.',
     }
   }
 

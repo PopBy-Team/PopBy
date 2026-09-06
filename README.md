@@ -76,6 +76,11 @@ but narrows new BGM links to individual tracks from Spotify, Apple Music or
 YouTube Music. Projects created from the current `schema.sql` already include
 this rule; running the upgrade again is safe.
 
+Then run `supabase/upgrade_thought_creation_refinement.sql` once. It updates
+the current 14/16/18pt choices, requires text on newly published Thoughts, and
+stops automatically merging a new long-press into a nearby node. Existing
+Thoughts and explicit long-press additions to an existing marker are preserved.
+
 Run `supabase/seed_demo.sql` again if you want the refreshed demo story. It
 replaces only the fixed demo records and gives the nearby 50m cluster 2, 5 and
 10 Thoughts, so all three marker sizes are visible together.
@@ -102,18 +107,19 @@ presentable even when you are physically somewhere else.
 - Zoom in: the exact category markers appear: 🐾 🌳 🍴 🎨 📍 🎵 ✨.
 - Long press open ground or an existing Thought point within 50m of current/demo
   GPS: choose a category from the adaptive radial fan, then edit the centered
-  Thought card. Holding an existing point aggregates there only after the
-  backend verifies its safe anchor is within 20m.
+  Thought card. Holding an existing point adds to that exact location only after
+  the backend verifies its safe anchor is within 20m; open-ground drops create
+  their own safe location node.
 - Click location > if within 50m: unlock.
 - Previously unlocked locations can be reopened.
 - Mine filters to your own thoughts and allows remote viewing.
 - The initial map frames Fitzroy in the middle half of the phone, stops at zoom
   20, and shows the current/demo position as a blue live light. The recenter
-  control currently frames a 200m radius; the nearby code comment marks the
+  control currently frames a 150m radius; the nearby code comment marks the
   single constant to restore to 400m when another active suburb opens.
 - The transparent lower label follows the map centre, showing
   `MELBOURNE · <SUBURB>` in known areas and `MELBOURNE` elsewhere.
-- Thought cards use 12/14/16pt choices, a full timestamp, swipe dots and an Add
+- Thought cards use 14/16/18pt choices, a full timestamp, tap-navigation dots and an Add
   action for adding another Thought at the currently explored point.
 - Composer text is limited to 150 words. Pick BGM accepts an individual Spotify,
   Apple Music or YouTube Music track link up to 300 characters. Audio stays on
@@ -124,7 +130,7 @@ presentable even when you are physically somewhere else.
   - find nearby public-ish road/path
   - reject restricted/service/driveway
   - store only safe coordinate
-  - merge with an existing location within 20m
+  - reuse an existing location only when its marker was explicitly held
 - 2 unique reports hide a Thought.
 - Rate limit: 5 drops/device/hour and 3 drops/location/hour.
 
@@ -165,7 +171,7 @@ The updated starter includes a complete first-run guidance system:
 - first-publish Nearby rules (50m, 5/hour/device, 3/hour/location), followed by
   contextual rule messages only when an action exceeds a limit
 - live-camera-only photo backgrounds plus paper, Morandi, font and size tools
-- centered swipe card reader with owner Delete / public Report actions
+- centered tap-to-change card reader with owner Delete / public Report actions
 - simple Fitzroy progress bar + Next: Carlton, hidden after category icons appear
 - a complete seven-icon legend in the Explore instruction
 - Create guidance explains that users can create a Thought right where they are,

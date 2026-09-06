@@ -22,6 +22,7 @@ import {
   markTipShown,
   shouldShowTip,
   friendlyPublishError,
+  getLockedAreaTip,
 } from './lib/guidance'
 import { shouldDismissProgress } from './lib/mapPresentation'
 import { setPageZoomLocked } from './lib/mapLifecycle'
@@ -188,9 +189,7 @@ export default function App() {
       outside_active_area: {
         key: 'drop_area',
         position: 'center',
-        eyebrow: 'Awaiting unlock',
-        title: 'Drop inside the open area',
-        body: 'Choose a point inside a bright, open area.',
+        title: 'This area isn’t open yet',
       },
       too_far: {
         key: 'drop_distance',
@@ -262,13 +261,7 @@ export default function App() {
   }
 
   function showLockedSuburb(name) {
-    setCoachTip({
-      position: 'top-left',
-      eyebrow: 'Awaiting unlock',
-      title: `${name} isn’t open yet`,
-      body:
-        'The current open area must reach all four goals first: 15 active locations, 50 Thoughts, 30 contributors and 50 successful unlocks.',
-    })
+    setCoachTip(getLockedAreaTip(name))
   }
 
   const visibleLocations = mineMode

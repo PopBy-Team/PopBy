@@ -24,8 +24,8 @@ export default function DropCategoryFan({
   const pinCoordinateRef = useRef(coordinate)
   const positions = useMemo(
     () => getCategoryFanPositions(CATEGORIES.length, {
-      radiusX: 132,
-      radiusY: 88,
+      radiusX: 124,
+      radiusY: 124,
       direction: presentation?.direction || 'up',
     }),
     [presentation?.direction],
@@ -137,8 +137,11 @@ export default function DropCategoryFan({
         aria-hidden="true"
       >
         <svg viewBox="0 0 32 40">
-          <path d="M16 38C13 31 5 24 5 15.5A11 11 0 0 1 27 15.5C27 24 19 31 16 38Z" />
-          <circle cx="16" cy="15.5" r="4" />
+          <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M16 38C13 31 5 24 5 15.5A11 11 0 0 1 27 15.5C27 24 19 31 16 38ZM16 10.5A5 5 0 1 0 16 20.5A5 5 0 0 0 16 10.5Z"
+          />
         </svg>
       </div>
 

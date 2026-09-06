@@ -7,13 +7,12 @@ export default function ProgressCard({ stats, hidden = false }) {
       aria-hidden={hidden}
       aria-label={hidden ? undefined : `Fitzroy unlock progress ${progress}%`}
     >
-      <div className="progress-title">
+      <div className="progress-main-row">
         <strong>Fitzroy</strong>
+        <div className="progress-track" aria-hidden="true">
+          <div className="progress-fill" style={{ width: `${progress}%` }} />
+        </div>
         <span>{progress}%</span>
-      </div>
-
-      <div className="progress-track">
-        <div className="progress-fill" style={{ width: `${progress}%` }} />
       </div>
 
       <div className="progress-next">

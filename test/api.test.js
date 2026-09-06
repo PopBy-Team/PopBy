@@ -42,7 +42,7 @@ function validPublishInput(overrides = {}) {
     p_background_type: 'solid',
     p_background_color: 'white',
     p_font_family: 'caveat',
-    p_font_size: 12,
+    p_font_size: 14,
     p_image_url: null,
     p_music_url: null,
     p_target_location_id: null,
@@ -235,7 +235,7 @@ test('demo dwell recording accepts the same capped duration contract as Supabase
   )
 })
 
-test('demo publishing stores only the Safe Anchor and merges within 20 metres', async () => {
+test('a new drop creates its own Safe Anchor node even beside an existing point', async () => {
   const storage = memoryStorage()
   const api = createApi(null, { demoMode: true, storage })
   const [existing] = await api.getMapLocations('author-device')
@@ -259,17 +259,22 @@ test('demo publishing stores only the Safe Anchor and merges within 20 metres', 
   const locations = await api.getMapLocations(
     '00000000-0000-4000-8000-000000009001',
   )
-  const merged = locations.find((location) => location.location_id === existing.location_id)
+  const unchanged = locations.find((location) => location.location_id === existing.location_id)
+  const created = locations.find((location) =>
+    location.location_id !== existing.location_id && location.is_mine
+  )
   const ownCards = await api.getLocationThoughts(
-    existing.location_id,
+    created.location_id,
     '00000000-0000-4000-8000-000000009001',
     true,
   )
 
   assert.match(thoughtId, /^[0-9a-f-]{36}$/)
-  assert.equal(locations.length, 6)
-  assert.equal(merged.thought_count, 3)
-  assert.equal(merged.is_mine, true)
+  assert.equal(locations.length, 7)
+  assert.equal(unchanged.thought_count, 2)
+  assert.equal(created.thought_count, 1)
+  assert.equal(created.lng, existing.lng)
+  assert.equal(created.lat, existing.lat)
   assert.equal(ownCards[0].body, 'A new demo Thought.')
   assert.equal(Object.hasOwn(ownCards[0], 'drop_lat'), false)
   assert.equal(Object.hasOwn(ownCards[0], 'drop_lng'), false)
@@ -289,7 +294,7 @@ test('demo publishing creates a new node at the Safe Anchor when no node is with
     p_safe_lng: safeCoordinate[0],
     p_suburb: 'Fitzroy',
     p_category: 'Nature',
-    p_body: null,
+    p_body: 'One small detail.',
     p_background_type: 'grid',
     p_image_url: null,
     p_music_url: null,
@@ -345,6 +350,11 @@ test('selected-node publishing rejects a safe anchor farther than 20m', async ()
 test('publishing enforces the new body, BGM, and font-size contract', async () => {
   await assert.rejects(
     () => createApi(null, { demoMode: true, storage: memoryStorage() })
+      .publishThought(validPublishInput({ p_body: '   ' })),
+    { message: 'Thought text is required' },
+  )
+  await assert.rejects(
+    () => createApi(null, { demoMode: true, storage: memoryStorage() })
       .publishThought(validPublishInput({ p_body: Array(151).fill('word').join(' ') })),
     { message: '150-word maximum' },
   )
@@ -360,11 +370,11 @@ test('publishing enforces the new body, BGM, and font-size contract', async () =
   )
   await assert.doesNotReject(
     () => createApi(null, { demoMode: true, storage: memoryStorage() })
-      .publishThought(validPublishInput({ p_font_size: 16 })),
+      .publishThought(validPublishInput({ p_font_size: 18, p_music_url: null })),
   )
   await assert.rejects(
     () => createApi(null, { demoMode: true, storage: memoryStorage() })
-      .publishThought(validPublishInput({ p_font_size: 10 })),
+      .publishThought(validPublishInput({ p_font_size: 12 })),
     { message: 'Invalid card appearance' },
   )
 })
@@ -416,20 +426,27 @@ test('demo publishing enforces five Thoughts per device in a rolling hour', asyn
 
 test('demo publishing limits a location node to three new Thoughts per hour', async () => {
   const api = createApi(null, { demoMode: true, storage: memoryStorage() })
-  const coordinate = [144.97886, -37.80046]
+  const [location] = await api.getMapLocations('reader')
+  const coordinate = [location.lng, location.lat]
 
   for (let index = 0; index < 3; index += 1) {
-    await api.publishThought(demoPublishInput(
-      `00000000-0000-4000-8000-00000000920${index}`,
-      coordinate,
-    ))
+    await api.publishThought({
+      ...demoPublishInput(
+        `00000000-0000-4000-8000-00000000920${index}`,
+        coordinate,
+      ),
+      p_target_location_id: location.location_id,
+    })
   }
 
   await assert.rejects(
-    () => api.publishThought(demoPublishInput(
-      '00000000-0000-4000-8000-000000009299',
-      coordinate,
-    )),
+    () => api.publishThought({
+      ...demoPublishInput(
+        '00000000-0000-4000-8000-000000009299',
+        coordinate,
+      ),
+      p_target_location_id: location.location_id,
+    }),
     { message: 'This location is taking a short break' },
   )
 })
@@ -499,15 +516,17 @@ test('demo Thoughts expose ownership and only the author can delete', async () =
     ...demoPublishInput(author, [location.lng, location.lat], 'Mine to remove.'),
     p_background_color: 'sage',
     p_font_family: 'patrick-hand',
-    p_font_size: 12,
+    p_font_size: 14,
   })
 
-  const [owned] = await api.getLocationThoughts(location.location_id, author, true)
+  const mineLocation = (await api.getMapLocations(author))
+    .find((item) => item.is_mine && item.location_id !== location.location_id)
+  const [owned] = await api.getLocationThoughts(mineLocation.location_id, author, true)
   assert.equal(owned.id, thoughtId)
   assert.equal(owned.is_own, true)
   assert.equal(owned.background_color, 'sage')
   assert.equal(owned.font_family, 'patrick-hand')
-  assert.equal(owned.font_size, 12)
+  assert.equal(owned.font_size, 14)
 
   await assert.rejects(
     () => api.deleteThought('00000000-0000-4000-8000-000000009951', thoughtId),
@@ -516,7 +535,7 @@ test('demo Thoughts expose ownership and only the author can delete', async () =
 
   assert.equal(await api.deleteThought(author, thoughtId), true)
   assert.deepEqual(
-    await api.getLocationThoughts(location.location_id, author, true),
+    await api.getLocationThoughts(mineLocation.location_id, author, true),
     [],
   )
 })

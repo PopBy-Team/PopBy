@@ -15,8 +15,18 @@ export default function OnboardingTour({ onComplete }) {
   }
 
   return (
-    <div className="onboarding-backdrop" role="dialog" aria-modal="true">
-      <section className="onboarding-card">
+    <div
+      className="onboarding-backdrop"
+      role="dialog"
+      aria-modal="true"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onComplete?.()
+      }}
+    >
+      <section
+        className="onboarding-card"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="onboarding-visual">{step.visual}</div>
 
         <div className="onboarding-eyebrow">

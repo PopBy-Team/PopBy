@@ -12,7 +12,7 @@ export default function CoachTip({ tip, onDismiss }) {
       </button>
       {tip.eyebrow && <div className="coach-eyebrow">{tip.eyebrow}</div>}
       <strong>{tip.title}</strong>
-      <p>{tip.body}</p>
+      {tip.body && <p>{tip.body}</p>}
     </aside>
   )
 }

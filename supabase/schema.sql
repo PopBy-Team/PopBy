@@ -30,7 +30,7 @@ create table if not exists public.thoughts (
   background_type text not null default 'solid',
   background_color text not null default 'white',
   font_family text not null default 'caveat',
-  font_size smallint not null default 12,
+  font_size smallint not null default 14,
   image_url text,
   music_url text check (
     music_url is null or music_url ~* '^https?://'
@@ -42,14 +42,14 @@ create table if not exists public.thoughts (
 alter table public.thoughts
   add column if not exists background_color text not null default 'white',
   add column if not exists font_family text not null default 'caveat',
-  add column if not exists font_size smallint not null default 12;
+  add column if not exists font_size smallint not null default 14;
 
 update public.thoughts
-set font_size = 12
-where font_size = 10;
+set font_size = 14
+where font_size in (10, 12);
 
 alter table public.thoughts
-  alter column font_size set default 12;
+  alter column font_size set default 14;
 
 alter table public.thoughts
   drop constraint if exists thoughts_background_type_check,
@@ -67,7 +67,7 @@ alter table public.thoughts
   add constraint thoughts_font_family_check check (
     font_family in ('caveat', 'patrick-hand', 'homemade-apple', 'island-moments')
   ),
-  add constraint thoughts_font_size_check check (font_size in (12, 14, 16));
+  add constraint thoughts_font_size_check check (font_size in (14, 16, 18));
 
 create index if not exists thoughts_location_idx
   on public.thoughts(location_id, created_at desc);
@@ -353,8 +353,8 @@ grant execute on function public.record_unlock(
 
 -- PUBLISH THOUGHT -----------------------------------------------------------
 -- Raw Drop and user GPS values are validation-only function parameters. The
--- only persisted coordinate is the privacy-adjusted Safe Anchor (or a nearby
--- existing node selected by the 20m merge).
+-- only persisted coordinate is the privacy-adjusted Safe Anchor, unless the
+-- user deliberately held an existing Thought point and selected that node.
 
 create or replace function public.is_supported_music_url(p_url text)
 returns boolean
@@ -402,7 +402,7 @@ create function public.publish_thought(
   p_background_type text default 'solid',
   p_background_color text default 'white',
   p_font_family text default 'caveat',
-  p_font_size smallint default 12,
+  p_font_size smallint default 14,
   p_image_url text default null,
   p_music_url text default null,
   p_target_location_id uuid default null
@@ -445,8 +445,12 @@ begin
     raise exception 'Invalid font';
   end if;
 
-  if p_font_size is null or p_font_size not in (12, 14, 16) then
+  if p_font_size is null or p_font_size not in (14, 16, 18) then
     raise exception 'Invalid font size';
+  end if;
+
+  if coalesce(p_body, '') !~ '[^[:space:]]' then
+    raise exception 'Thought text is required';
   end if;
 
   v_word_count := case
@@ -507,13 +511,6 @@ begin
     if v_location_id is null then
       raise exception 'Selected location is no longer available';
     end if;
-  else
-    select l.id
-      into v_location_id
-    from public.locations l
-    where extensions.st_dwithin(l.geom, v_safe, 20)
-    order by extensions.st_distance(l.geom, v_safe)
-    limit 1;
   end if;
 
   if v_location_id is null then
@@ -548,7 +545,7 @@ begin
     v_location_id,
     p_device_id,
     p_category,
-    nullif(btrim(p_body), ''),
+    btrim(p_body),
     p_background_type,
     p_background_color,
     p_font_family,

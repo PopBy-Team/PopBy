@@ -11,7 +11,7 @@ import { parseMusicLink } from '../src/lib/musicLink.js'
 
 const DEMO_GPS = [144.9788, -37.8005]
 
-test('the nearby demo cluster shows Nature, Art, and Eat at all three size tiers', () => {
+test('the nearby demo cluster shows Sound, Nature, and Animals at all three size tiers', () => {
   const nearby = getDemoMapLocations('00000000-0000-4000-8000-000000002001')
     .filter((location) => distanceMeters(DEMO_GPS, [location.lng, location.lat]) <= 50)
     .sort((a, b) => a.thought_count - b.thought_count)
@@ -19,7 +19,7 @@ test('the nearby demo cluster shows Nature, Art, and Eat at all three size tiers
   assert.deepEqual(nearby.map((location) => location.thought_count), [2, 5, 10])
   assert.deepEqual(
     new Set(nearby.map((location) => location.dominant_category)),
-    new Set(['Nature', 'Art', 'Eat']),
+    new Set(['Sound', 'Nature', 'Animals']),
   )
   assert.ok(nearby.some((location) => location.is_mine))
 })
@@ -37,8 +37,8 @@ test('nearby demo cards cover every appearance tier and supported BGM provider',
     new Set(cards.map((thought) => thought.font_family)),
     new Set(['caveat', 'patrick-hand', 'homemade-apple', 'island-moments']),
   )
-  assert.deepEqual(new Set(cards.map((thought) => thought.font_size)), new Set([12, 14, 16]))
-  assert.ok(cards.some((thought) => thought.body === null))
+  assert.deepEqual(new Set(cards.map((thought) => thought.font_size)), new Set([14, 16, 18]))
+  assert.ok(cards.every((thought) => thought.body?.trim().length >= 1))
   assert.ok(cards.some((thought) => thought.background_type === 'photo' && thought.image_url))
 
   const providers = cards

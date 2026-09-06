@@ -3,7 +3,7 @@ import { bbox, circle, distance, point } from '@turf/turf'
 export const VIEWPORT_THRESHOLDS = {
   farMeters: 1500,
   // A pitched 3D viewport sees substantially more ground than its fitted
-  // radius. This keeps the 200m location focus in the count-tiered NEAR mode.
+  // radius. This keeps the 150m location focus in the count-tiered NEAR mode.
   nearMeters: 1350,
 }
 
@@ -15,7 +15,7 @@ export const MAP_3D_VIEW = Object.freeze({
 
 export const MAP_MAX_ZOOM = 20
 
-export const CURRENT_LOCATION_FOCUS_RADIUS_KM = 0.2
+export const CURRENT_LOCATION_FOCUS_RADIUS_KM = 0.15
 
 // Restore this 400m radius immediately when PopBy opens another active suburb.
 export const EXPANDED_AREA_FOCUS_RADIUS_KM = 0.4

@@ -12,3 +12,16 @@ export function getSwipeDirection({
   if (Math.abs(deltaX) <= Math.abs(deltaY)) return null
   return deltaX < 0 ? 'next' : 'previous'
 }
+
+export function getTapDirection({
+  startX,
+  startY,
+  endX,
+  endY,
+  centerX,
+  maxMovement = 12,
+}) {
+  const movement = Math.hypot(endX - startX, endY - startY)
+  if (movement > maxMovement) return null
+  return endX < centerX ? 'previous' : 'next'
+}
