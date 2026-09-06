@@ -182,6 +182,37 @@ test('tutorial visuals no longer teach a viewed or seen marker state', async () 
   assert.doesNotMatch(css, /\.is-seen/)
 })
 
+test('tutorial copy stays outlined and clear of the final phone spotlight', async () => {
+  const css = await readFile(
+    new URL('../src/tutorial/tutorial.css', import.meta.url),
+    'utf8',
+  )
+
+  assert.match(css, /--tutorial-text:\s*#f4c66b/)
+  assert.match(css, /--tutorial-text-outline:\s*rgba\(255,\s*255,\s*255,\s*\.9\)/)
+  assert.match(css, /\.tutorial-copy\s*\{[^}]*color:\s*var\(--tutorial-text\)/s)
+  assert.match(
+    css,
+    /\.tutorial-copy\s+:is\(\.tutorial-kicker,\s*strong,\s*p\)\s*\{[^}]*-webkit-text-stroke:\s*\.35px\s+var\(--tutorial-text-outline\)/s,
+  )
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*600px\)[\s\S]*?\.tutorial-copy strong\s*\{[^}]*font-size:\s*16px[^}]*line-height:\s*1\.16/s,
+  )
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*600px\)[\s\S]*?\.tutorial-step-complete \.tutorial-copy\s*\{[^}]*bottom:\s*max\(96px,\s*calc\(env\(safe-area-inset-bottom\)\s*\+\s*88px\)\)[^}]*transform:\s*translateX\(-50%\)\s*!important/s,
+  )
+  assert.match(
+    css,
+    /\.tutorial-step-complete \.tutorial-copy strong\s*\{[^}]*-webkit-text-stroke:\s*\.8px\s+#fff/s,
+  )
+  assert.match(
+    css,
+    /\.tutorial-step-complete \.tutorial-spotlight\s*\{[^}]*border:\s*2px\s+solid\s+#fff/s,
+  )
+})
+
 test('tutorial category and composer guards only permit the intended draft flow', () => {
   assert.equal(isTutorialCategoryAllowed(TUTORIAL.CHOOSE_NATURE, 'Nature'), true)
   assert.equal(isTutorialCategoryAllowed(TUTORIAL.CHOOSE_NATURE, 'Sound'), false)
