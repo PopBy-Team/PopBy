@@ -1,33 +1,83 @@
-# PopBy MVP starter
+# PopBy
 
-This repo is intentionally optimized for a 10-hour hackathon build.
+Sometimes you want to feel connected to a place, or to other people, without
+having to start a conversation. PopBy is a mobile-first map where people leave
+small Thoughts tied to real places. Walk closer to discover what someone
+noticed, or leave something for the next person.
 
-## Stack
+There are no profiles, follower counts, likes, or pressure to reply.
 
-- React + Vite
-- Mapbox GL JS
-- Supabase Postgres + PostGIS + Storage
-- Turf.js
-- Vercel for deployment
+**Live demo:** [pop-up-nu.vercel.app](https://pop-up-nu.vercel.app)
 
-## 1. Accounts
+## Features
 
-Create:
+PopBy has one simple rhythm: open the map, wander closer, unlock a Thought,
+then leave one of your own.
 
-1. A Mapbox account and public access token. The browser token must be able to
-   load Mapbox Standard and call Streets v8 Tilequery.
-2. A Supabase project. Copy its project URL and **publishable** browser key;
-   never put the secret/service-role key in a Vite environment variable.
-3. A Vercel account when you are ready to deploy.
+- Explore Fitzroy on a colourful 3D map. From far away, Thoughts look like warm
+  fireflies. Move closer and they become category icons: 🐾 🌳 🍴 🎨 📍 🎵 ✨.
+- Get within 50 metres of a Thought to open it. Once you have unlocked a place,
+  you can revisit it later on the same browser.
+- Tap through cards with text, paper or photo backgrounds, timestamps, and an
+  optional Spotify, Apple Music, or YouTube Music link.
+- Press and hold nearby ground, or an existing Thought point, whenever you want
+  to leave something. Choose a category, style the card, take a live photo, and
+  write up to 150 words.
+- Turn on Mine to find the Thoughts you have left behind. PopBy remembers them
+  with an anonymous ID stored in your browser.
+- Use the short animated tutorial to learn directly on the map. The `?` button
+  opens the guide again whenever you need it.
 
-## 2. Install
+Before publishing, PopBy moves the public pin to a safer nearby path or road.
+It never saves the exact place you pressed or your GPS location. Rate limits,
+owner deletion, and community reports help keep the shared space safe.
+
+### Learning PopBy
+
+The first visit feels more like a small game tutorial than a slideshow. It
+guides you through zooming, opening a Thought, adding to a place, pressing and
+holding on the map, and using the card editor. The practice Thought stays
+private and does not count toward any upload limits.
+
+Small tips appear only when they are useful, such as when a place is too far
+away or a suburb is not open yet. The full tutorial logic and wording are in
+[`GUIDANCE.md`](./GUIDANCE.md).
+
+## Tech stack
+
+| Part | Tool | What it does |
+| --- | --- | --- |
+| Web app | React, Vite, JavaScript and CSS | Builds the mobile interface and interactions |
+| Map | Mapbox GL JS with Mapbox Standard 3D | Displays the city, roads, buildings and Thought markers |
+| Location logic | Turf.js and PostGIS | Measures distance and checks nearby locations |
+| Data | Supabase Postgres, RPCs, RLS and Storage | Stores Thoughts, unlocks, reports and photos safely |
+| Hosting | GitHub and Vercel | Keeps the code versioned and the live app online |
+
+## Setup
+
+Want to look around first? Open the [live demo](https://pop-up-nu.vercel.app).
+To run your own copy, follow the steps below.
+
+### 1. Get the three services you need
+
+Before running PopBy, prepare:
+
+1. A Mapbox account and public access token. The token must be able to load
+   Mapbox Standard and call Streets v8 Tilequery.
+2. A Supabase project, its project URL, and its **publishable** browser key.
+   Never place a secret or service-role key in a Vite environment variable.
+3. A Vercel account, but only if you want to put the app online.
+
+### 2. Install PopBy
+
+Open a terminal in this project folder, then run:
 
 ```bash
 npm install
 cp .env.example .env.local
 ```
 
-Fill in `.env.local`.
+Open the new `.env.local` file and replace the example values with your own:
 
 ```env
 VITE_MAPBOX_TOKEN=pk.your_mapbox_public_token
@@ -36,161 +86,116 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 VITE_DEMO_MODE=true
 ```
 
-## 3. Database
+### 3. Prepare the database
 
-Open Supabase > SQL Editor and run:
+For a brand-new Supabase project, open its SQL Editor and run these files in
+this order:
 
-`supabase/schema.sql`
+1. `supabase/schema.sql`
+2. `supabase/seed_demo.sql` if you want the Fitzroy demo data
 
-The script enables PostGIS, creates the five app tables and indexes, enables
-RLS, installs the required security-definer RPCs, and creates the public
-`thought-images` bucket with the hackathon upload policy.
+The first file creates the database, security rules, app functions, and photo
+bucket. The second adds the sample Thoughts used in the demo.
 
-If PostGIS was created under a schema named `gis` instead of `extensions`,
-replace `extensions.` with `gis.` in the SQL.
+If PostGIS lives in a schema named `gis` instead of `extensions`, replace
+`extensions.` with `gis.` in the SQL. If Supabase does not allow the Storage
+section to run in the SQL Editor, create a public bucket named
+`thought-images` and add `anon` INSERT and SELECT policies for that bucket.
 
-If your project does not allow the Storage section to run from SQL Editor,
-create a public bucket named `thought-images` in Storage and add `anon` INSERT
-and SELECT policies limited to that bucket.
+Already have an older PopBy database? Keep your current data and run these
+upgrade files in order:
 
-For the six-location Fitzroy demo dataset, then run:
+1. `supabase/upgrade_mobile_thought_cards.sql`
+2. `supabase/upgrade_mobile_map_card_refinement.sql`
+3. `supabase/upgrade_bgm_allowlist.sql`
+4. `supabase/upgrade_thought_creation_refinement.sql`
+5. `supabase/seed_demo.sql` if you want to refresh the fixed demo records
 
-`supabase/seed_demo.sql`
+These upgrades bring an older database up to date without replacing its
+existing content. The demo seed is safe to run more than once.
 
-The seed is safe to run more than once. With `VITE_DEMO_MODE=true`, the same
-fictional dataset is also available immediately in the browser, so the map can
-be demonstrated before the optional database seed is applied.
-
-If the original PopBy schema is already installed, do not rerun the whole
-schema. Run `supabase/upgrade_mobile_thought_cards.sql` once instead. It adds
-the mobile card appearance fields and the owner-checked delete RPC without
-removing existing Thoughts.
-
-After that, run `supabase/upgrade_mobile_map_card_refinement.sql` once. It moves
-legacy 10pt cards to 12pt, installs the 150-word/300-character BGM publishing
-contract, enables validated publishing to an explicitly selected shared node,
-and moves the six known demo nodes to verified Mapbox sidewalk anchors.
-
-Finally, run `supabase/upgrade_bgm_allowlist.sql` once. It keeps existing data,
-but narrows new BGM links to individual tracks from Spotify, Apple Music or
-YouTube Music. Projects created from the current `schema.sql` already include
-this rule; running the upgrade again is safe.
-
-Then run `supabase/upgrade_thought_creation_refinement.sql` once. It updates
-the current 14/16/18pt choices, requires text on newly published Thoughts, and
-stops automatically merging a new long-press into a nearby node. Existing
-Thoughts and explicit long-press additions to an existing marker are preserved.
-
-Run `supabase/seed_demo.sql` again if you want the refreshed demo story. It
-replaces only the fixed demo records and gives the nearby 50m cluster 2, 5 and
-10 Thoughts, so all three marker sizes are visible together.
-
-## 4. Run
+### 4. Open PopBy on your computer
 
 ```bash
 npm run dev
 ```
 
-Open the Vite URL.
+Keep the terminal open, then visit the local address it shows. It is usually:
 
-For presentation mode:
+```text
+http://localhost:5173/?demo=1
+```
 
-- set `VITE_DEMO_MODE=true`, or
-- open `http://localhost:5173/?demo=1`
+Replay the animated tutorial without clearing other browser memories:
 
-Add `tutorial=1` to replay the animated first-user guide without clearing other
-browser memories: `http://localhost:5173/?demo=1&tutorial=1`.
+```text
+http://localhost:5173/?demo=1&tutorial=1
+```
 
-Demo mode simulates GPS on a public path in Whitlam Place, so the nearby trees
-and the 50m unlock/drop loop are presentable even when you are physically
-somewhere else.
+Demo mode puts a simulated GPS point on a public path near Whitlam Place, so
+you can try the 50-metre unlock and create flow without physically being there.
 
-## 5. Main interaction
+### 5. Put PopBy online
 
-- Zoom out: Thoughts become warm amber firefly dots and detail labels hide.
-- Zoom in: the exact category markers appear: 🐾 🌳 🍴 🎨 📍 🎵 ✨.
-- Long press open ground or an existing Thought point within 50m of current/demo
-  GPS: choose a category from the adaptive radial fan, then edit the centered
-  Thought card. Holding an existing point adds to that exact location only after
-  the backend verifies its safe anchor is within 20m; open-ground drops create
-  their own safe location node.
-- Click location > if within 50m: unlock.
-- Previously unlocked locations can be reopened.
-- Mine filters to your own thoughts and allows remote viewing.
-- The initial map frames Fitzroy in the middle half of the phone, stops at zoom
-  20, and shows the current/demo position as a blue live light. One location
-  control first frames a 150m radius, then becomes a compass for a closer 75m
-  view. The nearby code comment marks the single constant to restore to 400m
-  when another active suburb opens.
-- The transparent lower label follows the map centre, showing
-  `MELBOURNE · <SUBURB>` in known areas and `MELBOURNE` elsewhere.
-- Thought cards use 14/16/18pt choices, a full timestamp, tap-navigation dots and an Add
-  action for adding another Thought at the currently explored point.
-- Composer text is limited to 150 words. Pick BGM accepts an individual Spotify,
-  Apple Music or YouTube Music track link up to 300 characters. Audio stays on
-  the provider: PopBy stores only the normalized URL and opens it after a user
-  taps `Open BGM`; it does not download, host, autoplay or embed the track.
-- Drop publishing performs a Mapbox Streets privacy check:
-  - detect mapped building
-  - find nearby public-ish road/path
-  - reject restricted/service/driveway
-  - store only safe coordinate
-  - reuse an existing location only when its marker was explicitly held
-- 2 unique reports hide a Thought.
-- Rate limit: 5 drops/device/hour and 3 drops/location/hour.
+Push the project to GitHub and import that repository into Vercel. In Vercel,
+add the same four values from `.env.local` under Environment Variables, then
+deploy. Redeploy whenever you change one of those values.
 
-## 6. Important MVP compromises
+Use `VITE_DEMO_MODE=true` for a presentation deployment. Switch it to `false`
+when you want the site to use live Supabase data and browser GPS.
 
-1. The visible Fitzroy boundary and Drop-area check use the official Vicmap
-   Admin locality polygon, simplified to six decimal places. Neighboring
-   locked-suburb click targets remain approximate until those areas launch.
-   Source: State Government of Victoria, Vicmap Admin (CC BY 4.0).
-2. Public browser UUID is intentionally lightweight and can be reset by clearing
-   local storage.
-3. A browser GPS coordinate can be spoofed by a determined user.
-4. Privacy Safe Anchor currently runs in the browser. Move it into a server-side
-   Edge Function before a production launch.
-5. Anonymous public image uploads are acceptable for the demo only. Production
-   should use signed uploads / stronger abuse controls.
-6. HTML markers are intentional because Fitzroy MVP has few location nodes.
-   Move to Mapbox style layers when the dataset becomes large.
-7. Mapbox road/building data can support a safer anchor choice but cannot
-   guarantee that a point is legally public property.
-8. Account linking and recovery are future work; MVP identity stays on the
-   current browser only.
+## AI usage
 
-## 7. Vercel
+We built PopBy while learning some of the tools along the way. OpenAI Codex
+guided us through that process by explaining how React, Mapbox, and Supabase
+work together, helping us compare ways to build each feature, and walking us
+through the code when we got stuck.
 
-Push the folder to GitHub, import the repo into Vercel, and add the same
-environment variables from `.env.local`.
+We stayed hands-on throughout. We configured the services, reviewed and
+changed code, tested every iteration on desktop and mobile, and worked through
+technical problems with Codex. Our team made the final technical and product
+decisions, including the app structure, interactions, visual style, privacy
+rules, content, and business direction.
 
-Set `VITE_DEMO_MODE=true` for the presentation deployment. For a public MVP,
-switch it to `false`.
+The app itself does not use generative AI to write, rank, or reply to anyone's
+Thoughts.
 
-## 8. First-user guidance
+## MVP limitations
 
-The updated starter includes a complete first-run guidance system:
+PopBy is ready for demos and early testing, but a public-scale launch will need
+more work:
 
-- first-open animated field guide built on the real map, Thought reader,
-  category fan and composer; its practice draft never publishes or consumes limits
-- contextual tips for location, unlock distance, locked suburbs, drop distance and Mine
-- first-publish Nearby rules (50m, 5/hour/device, 3/hour/location), followed by
-  contextual rule messages only when an action exceeds a limit
-- live-camera-only photo backgrounds plus paper, Morandi, font and size tools
-- centered tap-to-change card reader with owner Delete / public Report actions
-- simple Fitzroy progress bar + Next: Carlton, hidden after category icons appear
-- a complete seven-icon legend in the Explore instruction
-- Create guidance explains that users can create a Thought right where they are,
-  whenever they feel like it; existing Thought points can also be held to add to
-  that shared place
-- the guide names the three supported BGM sources before the composer is opened
-- `?` button keeps the original 6-step reference guide and offers an animated replay
+1. The visible Fitzroy boundary and drop-area check use the official Vicmap
+   Admin locality polygon, simplified to six decimal places. Neighbouring locked
+   suburb click targets remain approximate until those areas launch.
+2. The browser device ID can be reset by clearing local storage, and browser GPS
+   can be spoofed.
+3. Safe Anchor currently runs in the browser. A production version should move
+   it into a Supabase Edge Function.
+4. Anonymous public image uploads suit the demo only. Production needs signed
+   uploads and stronger abuse controls.
+5. HTML markers work for the Fitzroy MVP but should move to Mapbox style layers
+   when the dataset becomes large.
+6. Mapbox road and building data supports safer anchor choices but cannot prove
+   that a point is legally public property.
+7. Account linking and recovery are future work. MVP identity stays in the
+   current browser.
 
-See `GUIDANCE.md` for the complete trigger/copy/presentation matrix.
+## Credits
 
-## 9. Demo media credit
+PopBy was made possible by these tools, datasets, and contributors:
 
-The Whitlam Place tree card uses
-[`Gough Whitlam - Its Time - Whitlam Park or Place.jpg`](https://commons.wikimedia.org/wiki/File:Gough_Whitlam_-_Its_Time_-_Whitlam_Park_or_Place.jpg)
-by Star A Star under
-[`CC BY-SA 4.0`](https://creativecommons.org/licenses/by-sa/4.0/).
+- [Mapbox](https://www.mapbox.com/) powers the map and Safe Anchor lookup, with
+  data from [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
+- The Fitzroy boundary comes from the State Government of Victoria's Vicmap
+  Admin dataset, licensed under
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- [Turf.js](https://turfjs.org/), [Supabase](https://supabase.com/), and
+  [PostGIS](https://postgis.net/) handle location and backend work.
+- The card fonts Caveat, Patrick Hand, Homemade Apple, and Island Moments come
+  from [Google Fonts](https://fonts.google.com/).
+- The Whitlam Place demo photo is
+  [`Gough Whitlam - Its Time - Whitlam Park or Place.jpg`](https://commons.wikimedia.org/wiki/File:Gough_Whitlam_-_Its_Time_-_Whitlam_Park_or_Place.jpg)
+  by Star A Star, licensed under
+  [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- We used OpenAI Codex during development as described in the AI usage section.
