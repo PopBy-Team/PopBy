@@ -1,2 +1,2 @@
-# GG1
+# The introduction pages for PopUp
 
