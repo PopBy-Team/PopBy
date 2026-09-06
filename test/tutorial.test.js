@@ -1,5 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { destination, point } from '@turf/turf'
 
 import {
   TUTORIAL,
@@ -13,6 +15,8 @@ import {
   isTutorialComposerStep,
   isTutorialComplete,
   isTutorialFocusCandidate,
+  shouldForceTutorial,
+  isWithinTutorialPressZone,
   markTutorialComplete,
   shouldRestoreTutorialMap,
   tutorialReducer,
@@ -107,6 +111,13 @@ test('tutorial completion is versioned without changing other browser memories',
   assert.equal(isTutorialComplete(storage), true)
 })
 
+test('a tutorial query flag replays guidance without clearing browser memories', () => {
+  assert.equal(shouldForceTutorial('?demo=1&tutorial=1'), true)
+  assert.equal(shouldForceTutorial('?tutorial=true'), true)
+  assert.equal(shouldForceTutorial('?demo=1'), false)
+  assert.equal(shouldForceTutorial('?tutorial=0'), false)
+})
+
 test('the temporary tutorial target is about 20m southeast of the user', () => {
   const user = [144.9788, -37.8005]
   const ghost = getTutorialGhostCoordinate(user)
@@ -115,6 +126,19 @@ test('the temporary tutorial target is about 20m southeast of the user', () => {
   assert.ok(meters > 19 && meters < 21, `expected 20m, received ${meters}`)
   assert.ok(ghost[0] > user[0], 'expected the target east of the user')
   assert.ok(ghost[1] < user[1], 'expected the target south of the user')
+})
+
+test('the tutorial accepts a hold anywhere inside its 24m glowing area', () => {
+  const center = [144.9788, -37.8005]
+  const inside = destination(point(center), 0.023, 90, {
+    units: 'kilometers',
+  }).geometry.coordinates
+  const outside = destination(point(center), 0.025, 90, {
+    units: 'kilometers',
+  }).geometry.coordinates
+
+  assert.equal(isWithinTutorialPressZone(inside, center), true)
+  assert.equal(isWithinTutorialPressZone(outside, center), false)
 })
 
 test('every active tutorial step maps to a real semantic target and interaction mode', () => {
@@ -126,7 +150,7 @@ test('every active tutorial step maps to a real semantic target and interaction 
     [TUTORIAL.OPEN_THOUGHT]: ['tutorial-thought', 'passthrough'],
     [TUTORIAL.CARD_BROWSE]: ['thought-card', 'passthrough'],
     [TUTORIAL.CARD_ADD]: ['reader-add', 'passthrough'],
-    [TUTORIAL.LONG_PRESS_GHOST]: ['tutorial-ghost', 'passthrough'],
+    [TUTORIAL.LONG_PRESS_GHOST]: ['tutorial-press-zone', 'passthrough'],
     [TUTORIAL.CHOOSE_NATURE]: ['category-nature', 'passthrough'],
     [TUTORIAL.CARD_ICON]: ['card-icon', 'capture'],
     [TUTORIAL.CARD_TEXT]: ['card-text', 'capture'],
@@ -142,6 +166,20 @@ test('every active tutorial step maps to a real semantic target and interaction 
     assert.equal(STEP_UI[step].mode, mode)
     assert.ok(STEP_UI[step].text.length > 0)
   }
+})
+
+test('tutorial visuals no longer teach a viewed or seen marker state', async () => {
+  const overlay = await readFile(
+    new URL('../src/tutorial/TutorialOverlay.jsx', import.meta.url),
+    'utf8',
+  )
+  const css = await readFile(
+    new URL('../src/tutorial/tutorial.css', import.meta.url),
+    'utf8',
+  )
+
+  assert.doesNotMatch(overlay, /is-seen|>seen</)
+  assert.doesNotMatch(css, /\.is-seen/)
 })
 
 test('tutorial category and composer guards only permit the intended draft flow', () => {
@@ -195,9 +233,9 @@ test('Mapbox owns the marker anchor while a nested visual owns animation', () =>
     interactive: true,
   })
   assert.deepEqual(getTutorialMarkerPresentation(TUTORIAL.LONG_PRESS_GHOST), {
-    anchorClass: 'tutorial-marker-anchor is-ghost',
-    visualClass: 'tutorial-ghost-drop-visual',
-    target: 'tutorial-ghost',
+    anchorClass: 'tutorial-marker-anchor is-press-zone',
+    visualClass: 'tutorial-press-zone-visual',
+    target: 'tutorial-press-zone',
     icon: '',
     interactive: false,
   })

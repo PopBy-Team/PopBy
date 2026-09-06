@@ -240,7 +240,6 @@
   background: white;
   box-shadow: 0 0 0 4px rgba(255,230,105,.75), 0 0 15px rgba(255,233,138,.8);
 }
-.tutorial-availability-demo .is-seen { background: rgba(156,153,145,.96); }
 
 .tutorial-card-tap-demo {
   display: flex;
@@ -302,13 +301,15 @@
   height: 44px;
   pointer-events: auto;
 }
-.tutorial-marker-anchor.is-ghost {
-  width: 38px;
-  height: 38px;
-  pointer-events: none;
+.tutorial-marker-anchor.is-press-zone {
+  width: 52px;
+  height: 52px;
+  /* Mapbox writes pointer-events:auto inline on every Marker. This target must
+     stay transparent so the map's real long-press listener receives the hold. */
+  pointer-events: none !important;
 }
 .tutorial-thought-marker-visual,
-.tutorial-ghost-drop-visual {
+.tutorial-press-zone-visual {
   width: 100%;
   height: 100%;
   display: grid;
@@ -329,15 +330,15 @@
 .tutorial-thought-marker-visual.is-access {
   animation: tutorial-access-cycle 2.4s ease-in-out infinite;
 }
-.tutorial-ghost-drop-visual {
-  opacity: .78;
-  background:
-    radial-gradient(circle, rgba(255,235,144,.96) 0 16%, rgba(255,235,144,.40) 17% 42%, rgba(255,235,144,.08) 43% 100%);
-  box-shadow: 0 0 13px rgba(255,235,144,.78), 0 0 30px rgba(255,235,144,.32);
-  animation: tutorial-ghost-bounce 1.12s ease-in-out infinite;
+.tutorial-press-zone-visual {
+  border: 1px solid rgba(255,235,144,.72);
+  opacity: .9;
+  background: radial-gradient(circle, transparent 0 44%, rgba(255,235,144,.13) 62%, rgba(255,235,144,.28) 100%);
+  box-shadow: 0 0 16px rgba(255,235,144,.72), 0 0 34px rgba(255,235,144,.36), inset 0 0 18px rgba(255,235,144,.18);
+  animation: tutorial-press-zone-breathe 1.35s ease-in-out infinite;
 }
-.tutorial-marker-anchor.is-missed .tutorial-ghost-drop-visual {
-  animation: tutorial-ghost-miss 360ms ease-out, tutorial-ghost-bounce 1.12s ease-in-out 360ms infinite;
+.tutorial-marker-anchor.is-missed .tutorial-press-zone-visual {
+  animation: tutorial-ghost-miss 360ms ease-out, tutorial-press-zone-breathe 1.35s ease-in-out 360ms infinite;
 }
 
 .drop-category-bubble.tutorial-disabled {
@@ -386,12 +387,11 @@
 .app.tutorial-active .progress-card,
 .app.tutorial-active .mine-toggle,
 .app.tutorial-active .guide-button,
-.app.tutorial-active .map-compass,
 .app.tutorial-active .demo-badge {
   pointer-events: none;
 }
-.app.tutorial-active .recenter-button { pointer-events: none; }
-.app[data-tutorial-step="locate"] .recenter-button { pointer-events: auto; }
+.app.tutorial-active .location-control-button { pointer-events: none; }
+.app[data-tutorial-step="locate"] .location-control-button { pointer-events: auto; }
 
 @keyframes tutorial-fade-in { from { opacity: 0; } }
 @keyframes tutorial-complete-mask { to { opacity: 0; } }
@@ -406,9 +406,11 @@
 @keyframes tutorial-access-cycle {
   0%, 30% { filter: grayscale(1); opacity: .42; box-shadow: 0 4px 12px rgba(0,0,0,.16); }
   52%, 78% { filter: none; opacity: 1; box-shadow: 0 0 0 5px rgba(255,230,105,.78), 0 0 24px rgba(255,233,138,.72); }
-  100% { filter: grayscale(.5); opacity: .7; background: rgba(184,181,172,.96); }
+  100% { filter: grayscale(1); opacity: .42; background: rgba(255,255,255,.96); box-shadow: 0 4px 12px rgba(0,0,0,.16); }
 }
-@keyframes tutorial-ghost-bounce { 50% { transform: translateY(-9px); } }
+@keyframes tutorial-press-zone-breathe {
+  50% { transform: scale(1.12); opacity: .7; }
+}
 @keyframes tutorial-ghost-miss {
   20% { transform: translateX(-7px); }
   45% { transform: translateX(7px); }
@@ -434,7 +436,7 @@
   .tutorial-category-demo span,
   .tutorial-card-tap-demo i,
   .tutorial-thought-marker-visual,
-  .tutorial-ghost-drop-visual,
+  .tutorial-press-zone-visual,
   .composer-tutorial-typing {
     animation: none !important;
     transition-duration: 0ms !important;

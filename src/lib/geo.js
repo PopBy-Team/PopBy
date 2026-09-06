@@ -16,6 +16,12 @@ export const MAP_3D_VIEW = Object.freeze({
 export const MAP_MAX_ZOOM = 20
 
 export const CURRENT_LOCATION_FOCUS_RADIUS_KM = 0.15
+export const CLOSE_LOCATION_FOCUS_RADIUS_KM = 0.075
+
+export const LOCATION_CONTROL_MODE = Object.freeze({
+  RECENTER: 'recenter',
+  COMPASS: 'compass',
+})
 
 // Restore this 400m radius immediately when PopBy opens another active suburb.
 export const EXPANDED_AREA_FOCUS_RADIUS_KM = 0.4
@@ -26,6 +32,38 @@ export const FITZROY_INITIAL_VERTICAL_PADDING_RATIO = 0.065
 export const FITZROY_INITIAL_ZOOM_BOOST = 0.75
 
 export const MOBILE_MIN_TOUCH_TARGET = 44
+
+export function getLocationControlAction(mode) {
+  if (mode === LOCATION_CONTROL_MODE.COMPASS) {
+    return {
+      radiusKm: CLOSE_LOCATION_FOCUS_RADIUS_KM,
+      nextMode: LOCATION_CONTROL_MODE.COMPASS,
+    }
+  }
+
+  return {
+    radiusKm: CURRENT_LOCATION_FOCUS_RADIUS_KM,
+    nextMode: LOCATION_CONTROL_MODE.COMPASS,
+  }
+}
+
+export function createLocationFocusRequest() {
+  let requestedRadiusKm = null
+
+  return {
+    request(radiusKm = CURRENT_LOCATION_FOCUS_RADIUS_KM) {
+      requestedRadiusKm = radiusKm
+    },
+    consume() {
+      const radiusKm = requestedRadiusKm
+      requestedRadiusKm = null
+      return radiusKm
+    },
+    cancel() {
+      requestedRadiusKm = null
+    },
+  }
+}
 
 export function distanceMeters(a, b) {
   if (!a || !b) return Infinity

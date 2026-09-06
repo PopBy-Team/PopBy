@@ -5,8 +5,11 @@ import {
   CURRENT_LOCATION_FOCUS_RADIUS_KM,
   EXPANDED_AREA_FOCUS_RADIUS_KM,
   MAP_MAX_ZOOM,
+  createLocationFocusRequest,
   fitFeatureToMiddleHalf,
   fitMapToRadius,
+  getLocationControlAction,
+  LOCATION_CONTROL_MODE,
   getMarkerPresentation,
   getMarkerSize,
   getViewportMode,
@@ -99,6 +102,30 @@ test('fitMapToRadius fits a map around the requested coordinate', () => {
     bearing: geo.MAP_3D_VIEW.bearing,
     maxZoom: MAP_MAX_ZOOM,
   })
+})
+
+test('the merged location control moves from a 150m overview to a 75m close view', () => {
+  assert.deepEqual(getLocationControlAction(LOCATION_CONTROL_MODE.RECENTER), {
+    radiusKm: 0.15,
+    nextMode: LOCATION_CONTROL_MODE.COMPASS,
+  })
+  assert.deepEqual(getLocationControlAction(LOCATION_CONTROL_MODE.COMPASS), {
+    radiusKm: 0.075,
+    nextMode: LOCATION_CONTROL_MODE.COMPASS,
+  })
+})
+
+test('passive GPS updates cannot consume an explicit camera focus twice', () => {
+  const focusRequest = createLocationFocusRequest()
+
+  assert.equal(focusRequest.consume(), null)
+  focusRequest.request(0.15)
+  assert.equal(focusRequest.consume(), 0.15)
+  assert.equal(focusRequest.consume(), null)
+
+  focusRequest.request(0.075)
+  focusRequest.cancel()
+  assert.equal(focusRequest.consume(), null)
 })
 
 test('initial Fitzroy fit lets the pitched suburb occupy about half of a portrait viewport', () => {

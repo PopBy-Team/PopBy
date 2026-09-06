@@ -5,11 +5,14 @@ import {
   createTutorialState,
   isTutorialComplete,
   markTutorialComplete,
+  shouldForceTutorial,
   tutorialReducer,
 } from './tutorialSteps'
 
 export function useTutorialController() {
-  const shouldAutoStartRef = useRef(!isTutorialComplete())
+  const shouldAutoStartRef = useRef(
+    shouldForceTutorial() || !isTutorialComplete(),
+  )
   const startedRef = useRef(false)
   const [state, dispatch] = useReducer(tutorialReducer, undefined, createTutorialState)
   const [locateRequest, setLocateRequest] = useState(0)

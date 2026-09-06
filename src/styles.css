@@ -275,11 +275,6 @@ a:focus-visible {
 .thought-marker:active::before {
   transform: translate(-50%, -50%) scale(.92);
 }
-.thought-marker.is-viewed::before {
-  border: 0;
-  background: rgba(184,181,172,.94);
-  box-shadow: 0 2px 8px rgba(49,47,43,.14);
-}
 .thought-marker.is-close::before {
   box-shadow: 0 0 0 5px rgba(255,230,105,.78), 0 4px 16px rgba(0,0,0,.22);
 }
@@ -309,7 +304,7 @@ a:focus-visible {
   50% { box-shadow: 0 0 0 11px rgba(75,156,255,.09), 0 2px 9px rgba(32,91,165,.42); }
 }
 
-.recenter-button {
+.location-control-button {
   position: absolute;
   z-index: 7;
   right: max(var(--edge-gutter), env(safe-area-inset-right));
@@ -326,42 +321,26 @@ a:focus-visible {
   box-shadow: 0 8px 24px rgba(0,0,0,.13);
   backdrop-filter: blur(12px);
 }
-.map-compass {
-  position: absolute;
-  z-index: 7;
-  right: max(calc(var(--edge-gutter) + 4px), calc(env(safe-area-inset-right) + 4px));
-  bottom: calc(122px + env(safe-area-inset-bottom));
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 1px solid rgba(40,40,40,.07);
-  border-radius: 50%;
-  color: #4d4b47;
-  background: rgba(255,255,255,.82);
-  box-shadow: 0 6px 19px rgba(0,0,0,.10);
-  backdrop-filter: blur(10px);
-}
-.map-compass svg {
-  width: 20px;
-  height: 20px;
-  fill: none;
-  stroke: #4d4b47;
-  stroke-width: 1.25;
-  stroke-linejoin: round;
-  transition: transform .12s linear;
-}
-.map-compass:active { transform: scale(.94); }
-.recenter-button svg {
+.location-control-button svg {
   width: 21px;
   height: 21px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
   stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform .16s ease, opacity .16s ease;
 }
-.recenter-button:active { transform: scale(.94); }
+.location-control-button.is-compass svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.25;
+  animation: location-control-swap .2s cubic-bezier(.2,.8,.2,1);
+}
+.location-control-button:active { transform: scale(.94); }
+@keyframes location-control-swap {
+  from { opacity: .2; transform: scale(.72); }
+}
 
 .mapboxgl-ctrl-group:has(> .mapboxgl-ctrl-geolocate) { display: none; }
 @media (hover: hover) and (pointer: fine) {

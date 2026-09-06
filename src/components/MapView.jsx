@@ -9,11 +9,13 @@ import {
   makeSuburbsGeoJSON,
 } from '../data/suburbs'
 import {
+  createLocationFocusRequest,
   fitFeatureToMiddleHalf,
   fitMapToRadius,
+  getLocationControlAction,
+  LOCATION_CONTROL_MODE,
   MAP_MAX_ZOOM,
   MAP_3D_VIEW,
-  distanceMeters,
   getMarkerPresentation,
   getViewportMode,
   getViewportWidthMeters,
@@ -38,6 +40,7 @@ import {
   TUTORIAL,
   getTutorialGhostCoordinate,
   getTutorialMarkerPresentation,
+  isWithinTutorialPressZone,
   shouldRestoreTutorialMap,
 } from '../tutorial/tutorialSteps'
 import DropCategoryFan from './DropCategoryFan'
@@ -87,6 +90,10 @@ export default function MapView({
   onTutorialLongPress,
 }) {
   const [bearing, setBearing] = useState(MAP_3D_VIEW.bearing)
+  const [locationControlMode, setLocationControlMode] = useState(
+    LOCATION_CONTROL_MODE.RECENTER,
+  )
+  const locationFocusRequestRef = useRef(createLocationFocusRequest())
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const markersRef = useRef(new Map())
@@ -186,10 +193,17 @@ export default function MapView({
       currentLocationRef.current = coordinate
       syncCurrentLocationRef.current?.(coordinate)
       onUserLocationRef.current?.(coordinate)
-      fitMapToRadius(map, coordinate)
+      const requestedRadiusKm = locationFocusRequestRef.current.consume()
+      if (requestedRadiusKm !== null) {
+        fitMapToRadius(map, coordinate, requestedRadiusKm)
+        setLocationControlMode(LOCATION_CONTROL_MODE.COMPASS)
+      }
       tutorialLocatedRef.current?.(coordinate)
     })
-    geolocate.on('error', () => tutorialLocationErrorRef.current?.())
+    geolocate.on('error', () => {
+      locationFocusRequestRef.current.cancel()
+      tutorialLocationErrorRef.current?.()
+    })
 
     const syncCurrentLocation = (coordinate) => {
       if (!coordinate) return
@@ -300,7 +314,7 @@ export default function MapView({
       attachMapLongPress(map, (coordinate) => {
         if (tutorialStepRef.current === TUTORIAL.LONG_PRESS_GHOST) {
           const ghostCoordinate = tutorialGhostCoordinateRef.current
-          if (distanceMeters(coordinate, ghostCoordinate) <= 12) {
+          if (isWithinTutorialPressZone(coordinate, ghostCoordinate)) {
             tutorialLongPressRef.current?.(coordinate)
             return
           }
@@ -323,9 +337,18 @@ export default function MapView({
       })
       syncMarkers(map)
 
-      map.on('zoomstart', () => {
+      map.on('zoomstart', (event) => {
+        if (event.originalEvent && tutorialStepRef.current === TUTORIAL.OFF) {
+          setLocationControlMode(LOCATION_CONTROL_MODE.RECENTER)
+        }
         if (tutorialStepRef.current === TUTORIAL.ZOOM) {
           zoomStartRef.current = map.getZoom()
+        }
+      })
+
+      map.on('dragstart', (event) => {
+        if (event.originalEvent && tutorialStepRef.current === TUTORIAL.OFF) {
+          setLocationControlMode(LOCATION_CONTROL_MODE.RECENTER)
         }
       })
 
@@ -451,7 +474,6 @@ export default function MapView({
         const markerState = getThoughtMarkerState(loc)
         el.classList.toggle('is-mine', markerState.isMine)
         el.classList.toggle('is-close', markerState.isClose)
-        el.classList.toggle('is-viewed', markerState.isViewed)
       }
     }
     syncMarkersRef.current = syncMarkers
@@ -507,6 +529,7 @@ export default function MapView({
 
   useEffect(() => {
     if (!tutorialLocateRequest) return
+    locationFocusRequestRef.current.request()
     geolocateRef.current?.trigger()
   }, [tutorialLocateRequest])
 
@@ -593,24 +616,20 @@ export default function MapView({
     })
   }, [tutorialStep])
 
-  function recenter() {
+  function useLocationControl() {
     const map = mapRef.current
     const coordinate = currentLocationRef.current
 
     if (map && coordinate) {
-      fitMapToRadius(map, coordinate)
+      const action = getLocationControlAction(locationControlMode)
+      fitMapToRadius(map, coordinate, action.radiusKm)
+      setLocationControlMode(action.nextMode)
       tutorialLocatedRef.current?.(coordinate)
       return
     }
 
+    locationFocusRequestRef.current.request()
     geolocateRef.current?.trigger()
-  }
-
-  function resetBearing() {
-    mapRef.current?.easeTo({
-      bearing: MAP_3D_VIEW.bearing,
-      duration: 360,
-    })
   }
 
   return (
@@ -620,34 +639,34 @@ export default function MapView({
         <div className="tutorial-map-gesture-target" data-tutorial-id="map" aria-hidden="true" />
       )}
       <button
-        className="map-compass"
-        type="button"
-        disabled={tutorialStep !== TUTORIAL.OFF}
-        onClick={resetBearing}
-        aria-label="Reset map direction"
-        title="Reset map direction"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          style={{ transform: `rotate(${-bearing}deg)` }}
-        >
-          <path d="m12 3 4.2 14.6L12 15l-4.2 2.6L12 3Z" />
-        </svg>
-      </button>
-      <button
-        className="recenter-button"
+        className={`location-control-button is-${locationControlMode}`}
         data-tutorial-id="geolocate"
+        data-mode={locationControlMode}
         type="button"
         disabled={tutorialStep !== TUTORIAL.OFF && tutorialStep !== TUTORIAL.LOCATE}
-        onClick={recenter}
-        aria-label="Back to my location"
-        title="Back to my location"
+        onClick={useLocationControl}
+        aria-label={locationControlMode === LOCATION_CONTROL_MODE.RECENTER
+          ? 'Center on my location, 150 metre view'
+          : 'Reset direction and close view around my location, 75 metre view'}
+        title={locationControlMode === LOCATION_CONTROL_MODE.RECENTER
+          ? 'My location · 150m'
+          : 'Reset direction · 75m'}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="5" />
-          <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-        </svg>
+        {locationControlMode === LOCATION_CONTROL_MODE.RECENTER ? (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.5" />
+            <path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4" />
+          </svg>
+        ) : (
+          <svg
+            className="location-compass-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            style={{ transform: `rotate(${-bearing}deg)` }}
+          >
+            <path d="m12 3 4.2 14.6L12 15l-4.2 2.6L12 3Z" />
+          </svg>
+        )}
       </button>
       {dropCoordinate && (
         <DropCategoryFan

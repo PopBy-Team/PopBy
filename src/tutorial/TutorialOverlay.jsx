@@ -69,9 +69,8 @@ function TutorialDemo({ type, zoom }) {
   if (type === 'availability') {
     return (
       <div className="tutorial-availability-demo" aria-hidden="true">
-        <span><i className="is-far" />far</span>
-        <span><i className="is-near">🌳</i>within 50m</span>
-        <span><i className="is-seen">🌳</i>seen</span>
+        <span><i className="is-far" />locked</span>
+        <span><i className="is-near">🌳</i>open · 50m</span>
       </div>
     )
   }
@@ -189,10 +188,10 @@ export default function TutorialOverlay({
     : 18
   const copyStyle = getCopyStyle(spotlight, config.placement, viewport)
   const displayText = locationError && step === TUTORIAL.LOCATE
-    ? 'Location is needed for nearby Thoughts.'
+    ? 'Location is off.'
     : config.text
   const displaySubtext = locationError && step === TUTORIAL.LOCATE
-    ? 'Allow location access, try again, or skip the tutorial and explore the map.'
+    ? 'Allow it, try again, or Skip.'
     : config.subtext
 
   return (

@@ -75,13 +75,12 @@ test('far Thought dots glow like warm amber fireflies inside a finger-sized hit 
   assert.ok(hitLayer.paint['circle-opacity'] <= 0.01)
 })
 
-test('own Thoughts keep their category appearance while explored points use a viewed state', async () => {
+test('unlock history never changes a Thought marker into a viewed state', async () => {
   const { getThoughtMarkerState } = await loadPresentation()
 
   assert.deepEqual(getThoughtMarkerState({ isMine: true, isClose: true }), {
     isMine: true,
     isClose: true,
-    isViewed: false,
   })
   assert.deepEqual(getThoughtMarkerState({
     isMine: true,
@@ -89,8 +88,7 @@ test('own Thoughts keep their category appearance while explored points use a vi
     isUnlocked: true,
   }), {
     isMine: true,
-    isClose: false,
-    isViewed: true,
+    isClose: true,
   })
 })
 
@@ -249,17 +247,6 @@ test('Thought marker CSS preserves Mapbox absolute positioning during zoom', asy
   assert.match(markerRule, /z-index:\s*1/)
   assert.match(markerRule, /top:\s*0/)
   assert.match(markerRule, /left:\s*0/)
-})
-
-test('viewed marker CSS keeps icons opaque and gives them a darker quiet fill', async () => {
-  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
-  const mineRule = css.match(/\.thought-marker\.is-mine::before\s*\{[^}]*\}/)?.[0] || ''
-  const viewedRule = css.match(/\.thought-marker\.is-viewed::before\s*\{[^}]*\}/)?.[0] || ''
-
-  assert.doesNotMatch(mineRule, /161,\s*222,\s*255/)
-  assert.match(viewedRule, /background:\s*rgba\(/)
-  assert.doesNotMatch(viewedRule, /opacity\s*:/)
-  assert.doesNotMatch(viewedRule, /border:\s*2px/)
 })
 
 test('card icons are circular and timestamps inherit the selected card font', async () => {

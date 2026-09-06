@@ -1,6 +1,13 @@
-import { destination, point } from '@turf/turf'
+import { destination, distance, point } from '@turf/turf'
 
 export const TUTORIAL_KEY = 'popby_tutorial_v3_complete'
+
+export function shouldForceTutorial(
+  search = typeof window !== 'undefined' ? window.location.search : '',
+) {
+  const value = new URLSearchParams(search).get('tutorial')
+  return value === '1' || value === 'true'
+}
 
 export const TUTORIAL = Object.freeze({
   OFF: 'off',
@@ -45,8 +52,8 @@ export const STEP_UI = Object.freeze({
     shape: 'roundRect',
     mode: 'passthrough',
     placement: 'center',
-    text: 'Pinch the city closer — then let it breathe back out.',
-    subtext: 'Thoughts change from firefly lights into icons as you move through the map.',
+    text: 'Pinch in. Pinch out.',
+    subtext: 'Dots become Thought icons up close.',
     demo: 'zoom',
   },
   [TUTORIAL.LOCATE]: {
@@ -54,16 +61,16 @@ export const STEP_UI = Object.freeze({
     shape: 'circle',
     mode: 'passthrough',
     placement: 'above',
-    text: 'Come back to where you are.',
-    subtext: 'Your location lets nearby Thoughts glow, open and be created.',
+    text: 'Find yourself.',
+    subtext: 'Tap once to center the map.',
   },
   [TUTORIAL.THOUGHT_MEANING]: {
     target: 'tutorial-thought',
     shape: 'circle',
     mode: 'capture',
     placement: 'above',
-    text: 'This is a Thought — something someone noticed right here.',
-    subtext: 'Its icon hints at what you’ll find inside.',
+    text: 'These are Thoughts.',
+    subtext: 'Each icon shows what someone noticed here.',
     demo: 'categories',
   },
   [TUTORIAL.THOUGHT_ACCESS]: {
@@ -71,8 +78,8 @@ export const STEP_UI = Object.freeze({
     shape: 'circle',
     mode: 'capture',
     placement: 'above',
-    text: 'Glow means you’re close enough to look.',
-    subtext: 'Within 50m it opens. Further away, it stays quiet until you get closer.',
+    text: 'Near opens. Far waits.',
+    subtext: 'Get within 50m to read.',
     demo: 'availability',
   },
   [TUTORIAL.OPEN_THOUGHT]: {
@@ -80,16 +87,15 @@ export const STEP_UI = Object.freeze({
     shape: 'circle',
     mode: 'passthrough',
     placement: 'above',
-    text: 'Tap the glowing Thought.',
-    subtext: 'The real card opens from its place on the map.',
+    text: 'Tap the Thought.',
   },
   [TUTORIAL.CARD_BROWSE]: {
     target: 'thought-card',
     shape: 'roundRect',
     mode: 'passthrough',
     placement: 'above',
-    text: 'Tap either side of the card.',
-    subtext: 'Move gently through the Thoughts left at one place.',
+    text: 'Tap either side.',
+    subtext: 'Move between Thoughts.',
     demo: 'cardTap',
   },
   [TUTORIAL.CARD_ADD]: {
@@ -97,40 +103,38 @@ export const STEP_UI = Object.freeze({
     shape: 'roundRect',
     mode: 'passthrough',
     placement: 'above',
-    text: 'Add lets you leave your own Thought at this place.',
-    subtext: 'Tap it once — this practice Thought will stay private and unsent.',
+    text: 'Add your own.',
+    subtext: 'This practice stays private.',
   },
   [TUTORIAL.LONG_PRESS_GHOST]: {
-    target: 'tutorial-ghost',
+    target: 'tutorial-press-zone',
     shape: 'circle',
     mode: 'passthrough',
     placement: 'above',
-    text: 'Press and hold the light to mark a nearby spot.',
-    subtext: 'Real drops must be within 50m · 5 per hour · 3 at one place per hour.',
+    text: 'Press and hold inside the glow.',
+    subtext: 'Create within 50m of you.',
   },
   [TUTORIAL.CHOOSE_NATURE]: {
     target: 'category-nature',
     shape: 'circle',
     mode: 'passthrough',
     placement: 'above',
-    text: 'Choose the icon that fits what you noticed.',
-    subtext: 'For this practice round, choose Nature.',
+    text: 'Choose Nature.',
   },
   [TUTORIAL.CARD_ICON]: {
     target: 'card-icon',
     shape: 'circle',
     mode: 'capture',
     placement: 'below',
-    text: 'Change the Thought icon here.',
-    subtext: 'Use the category that feels closest to what you noticed.',
+    text: 'Change the icon here.',
   },
   [TUTORIAL.CARD_TEXT]: {
     target: 'card-text',
     shape: 'roundRect',
     mode: 'capture',
     placement: 'center',
-    text: 'Leave your words in the paper.',
-    subtext: 'A detail, a feeling, a sound — up to 150 words.',
+    text: 'Write what you noticed.',
+    subtext: 'Up to 150 words.',
     demo: 'typing',
   },
   [TUTORIAL.CARD_PAPER]: {
@@ -138,16 +142,16 @@ export const STEP_UI = Object.freeze({
     shape: 'roundRect',
     mode: 'capture',
     placement: 'above',
-    text: 'Give the Thought a paper of its own.',
-    subtext: 'Try lines, dots, a grid or a quiet colour.',
+    text: 'Choose a background.',
+    subtext: 'Paper, pattern or colour.',
   },
   [TUTORIAL.CARD_CAMERA]: {
     target: 'card-camera',
     shape: 'circle',
     mode: 'capture',
     placement: 'above',
-    text: 'Or capture what’s in front of you right now.',
-    subtext: 'No camera opens during this tutorial.',
+    text: 'Take a live photo.',
+    subtext: 'The camera stays closed in this practice.',
     emphasis: 'strong',
   },
   [TUTORIAL.CARD_FONT]: {
@@ -155,8 +159,7 @@ export const STEP_UI = Object.freeze({
     shape: 'roundRect',
     mode: 'capture',
     placement: 'above',
-    text: 'Choose how your words feel.',
-    subtext: 'Tap the Aa control whenever you want a different handwriting style.',
+    text: 'Choose a font.',
     demo: 'font',
   },
   [TUTORIAL.CARD_FONT_SIZE]: {
@@ -164,8 +167,8 @@ export const STEP_UI = Object.freeze({
     shape: 'roundRect',
     mode: 'capture',
     placement: 'above',
-    text: 'Make your words quieter or louder.',
-    subtext: 'Choose small, medium or big.',
+    text: 'Choose a text size.',
+    subtext: 'Small, medium or big.',
     demo: 'fontSize',
   },
   [TUTORIAL.CARD_EXIT]: {
@@ -173,16 +176,16 @@ export const STEP_UI = Object.freeze({
     shape: 'roundRect',
     mode: 'passthrough',
     placement: 'above',
-    text: 'Tap a blank part of the paper to close.',
-    subtext: 'This practice Thought stays a draft. Real drops shift toward a safer nearby path before appearing.',
+    text: 'Tap blank paper to finish.',
+    subtext: 'Nothing will be published.',
   },
   [TUTORIAL.COMPLETE]: {
     target: 'guide-button',
     shape: 'circle',
     mode: 'none',
     placement: 'above',
-    text: 'You’re ready. Wander a little.',
-    subtext: 'Whenever you need a reminder, the ? guide is waiting here.',
+    text: 'You’re ready to explore.',
+    subtext: 'Tap ? anytime for help.',
   },
 })
 
@@ -241,9 +244,9 @@ export function getTutorialMarkerPresentation(step) {
 
   if (step === TUTORIAL.LONG_PRESS_GHOST) {
     return {
-      anchorClass: 'tutorial-marker-anchor is-ghost',
-      visualClass: 'tutorial-ghost-drop-visual',
-      target: 'tutorial-ghost',
+      anchorClass: 'tutorial-marker-anchor is-press-zone',
+      visualClass: 'tutorial-press-zone-visual',
+      target: 'tutorial-press-zone',
       icon: '',
       interactive: false,
     }
@@ -356,4 +359,11 @@ export function getTutorialGhostCoordinate(userCoordinate) {
   return destination(point(userCoordinate), 0.02, 135, {
     units: 'kilometers',
   }).geometry.coordinates
+}
+
+export function isWithinTutorialPressZone(coordinate, zoneCenter) {
+  if (!coordinate || !zoneCenter) return false
+  return distance(point(coordinate), point(zoneCenter), {
+    units: 'meters',
+  }) <= 24
 }

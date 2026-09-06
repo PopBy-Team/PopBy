@@ -11,9 +11,9 @@ The UI uses three levels of guidance:
 | Moment | User action | Guidance | Presentation |
 |---|---|---|---|
 | First open | Zooms in and out | Fireflies become category icons as the map scale changes | Live map spotlight + animated pinch cue |
-| First open | Taps ◎ | Location is needed for nearby unlock and Create rules | Live control spotlight; retry and Skip remain available |
+| First open | Taps the location control | Location is needed for nearby unlock and Create rules | Live control spotlight; retry and Skip remain available |
 | First open | Explores practice Thought | Learns icons, distance states, card taps and Add | Temporary in-memory marker + real Thought card UI |
-| First open | Creates practice draft | Long-presses a 20m target, selects Nature and tours every card control | Real long-press, category fan and composer with spotlight targets |
+| First open | Creates practice draft | Long-presses inside a nearby glowing area, selects Nature and tours every card control | Real long-press, category fan and composer with spotlight targets |
 | Tutorial exit | Taps blank paper | Practice is discarded; no upload, RPC, dwell or rate-limit usage | Small “You’re ready” message pointing to `?` |
 | Map | Pan / zoom | Dots far away; category icons closer in | Map presentation |
 | Locked suburb | Tap grey suburb | “This area isn’t open yet” | Top-left coach tip |

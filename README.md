@@ -98,6 +98,9 @@ For presentation mode:
 - set `VITE_DEMO_MODE=true`, or
 - open `http://localhost:5173/?demo=1`
 
+Add `tutorial=1` to replay the animated first-user guide without clearing other
+browser memories: `http://localhost:5173/?demo=1&tutorial=1`.
+
 Demo mode simulates GPS in central Fitzroy, so the 50m unlock/drop loop is
 presentable even when you are physically somewhere else.
 
@@ -114,9 +117,10 @@ presentable even when you are physically somewhere else.
 - Previously unlocked locations can be reopened.
 - Mine filters to your own thoughts and allows remote viewing.
 - The initial map frames Fitzroy in the middle half of the phone, stops at zoom
-  20, and shows the current/demo position as a blue live light. The recenter
-  control currently frames a 150m radius; the nearby code comment marks the
-  single constant to restore to 400m when another active suburb opens.
+  20, and shows the current/demo position as a blue live light. One location
+  control first frames a 150m radius, then becomes a compass for a closer 75m
+  view. The nearby code comment marks the single constant to restore to 400m
+  when another active suburb opens.
 - The transparent lower label follows the map centre, showing
   `MELBOURNE · <SUBURB>` in known areas and `MELBOURNE` elsewhere.
 - Thought cards use 14/16/18pt choices, a full timestamp, tap-navigation dots and an Add
