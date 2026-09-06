@@ -28,6 +28,7 @@ import {
   isComposerTextLocked,
 } from '../lib/cardAppearance'
 import LiveCamera from './LiveCamera'
+import { TUTORIAL, getTutorialDraftPolicy } from '../tutorial/tutorialSteps'
 
 function backgroundValue(backgroundType, backgroundColor) {
   if (backgroundType === 'solid') return backgroundColor
@@ -42,6 +43,9 @@ export default function DropComposer({
   targetLocationId = null,
   privacyResult = null,
   showAnchorNotice = false,
+  tutorialMode = false,
+  tutorialStep = TUTORIAL.OFF,
+  onTutorialFinish,
   onClose,
   onPublished,
 }) {
@@ -60,7 +64,9 @@ export default function DropComposer({
   const [cameraOpen, setCameraOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const [showFirstHint, setShowFirstHint] = useState(() => shouldShowFirstPublishHint())
+  const [showFirstHint, setShowFirstHint] = useState(
+    () => !tutorialMode && shouldShowFirstPublishHint(),
+  )
   const [anchorNoticeVisible, setAnchorNoticeVisible] = useState(showAnchorNotice)
 
   const words = useMemo(() => countWords(body), [body])
@@ -72,6 +78,7 @@ export default function DropComposer({
   })
   const selectedBackgroundValue = backgroundValue(backgroundType, backgroundColor)
   const textEntryLocked = isComposerTextLocked(activeTool)
+  const tutorialPolicy = getTutorialDraftPolicy(tutorialMode)
 
   useEffect(() => {
     if (!photo) {
@@ -95,7 +102,17 @@ export default function DropComposer({
     if (textEntryLocked) document.activeElement?.blur?.()
   }, [textEntryLocked])
 
+  useEffect(() => {
+    if (!tutorialMode) return
+    if ([TUTORIAL.CARD_PAPER, TUTORIAL.CARD_CAMERA].includes(tutorialStep)) {
+      setActiveTool('background')
+      return
+    }
+    setActiveTool(null)
+  }, [tutorialMode, tutorialStep])
+
   async function publish() {
+    if (!tutorialPolicy.mayPublish) return
     setError(null)
 
     if (!hasThoughtText(body)) {
@@ -132,7 +149,7 @@ export default function DropComposer({
     try {
       setBusy(true)
       const privacy = privacyResult || await getSafeAnchor(rawCoordinate)
-      const imageUrl = backgroundType === 'photo'
+      const imageUrl = backgroundType === 'photo' && tutorialPolicy.mayUpload
         ? await uploadThoughtPhoto(photo, deviceId)
         : null
 
@@ -185,15 +202,23 @@ export default function DropComposer({
     setActiveTool(null)
   }
 
+  function exitFromBlankPaper() {
+    if (tutorialMode) {
+      onTutorialFinish?.()
+      return
+    }
+    onClose?.()
+  }
+
   const photoStyle = backgroundType === 'photo' && photoPreview
     ? { backgroundImage: `linear-gradient(rgba(20,18,14,.18), rgba(20,18,14,.32)), url("${photoPreview}")` }
     : undefined
 
   return (
     <div
-      className={showFirstHint ? 'card-stage has-first-hint' : 'card-stage'}
+      className={`${showFirstHint ? 'card-stage has-first-hint' : 'card-stage'} ${tutorialMode ? 'is-tutorial-draft' : ''}`.trim()}
       onPointerDown={(event) => {
-        if (event.target === event.currentTarget) onClose()
+        if (event.target === event.currentTarget && !tutorialMode) onClose()
       }}
     >
       {showFirstHint && (
@@ -221,7 +246,9 @@ export default function DropComposer({
           <div className="composer-category-control">
             <button
               className="composer-category-icon"
+              data-tutorial-id="card-icon"
               type="button"
+              disabled={tutorialMode}
               onClick={() => setCategoryMenuOpen((value) => !value)}
               aria-label={`Change category. Current category: ${category}`}
               aria-expanded={categoryMenuOpen}
@@ -234,6 +261,7 @@ export default function DropComposer({
                   <button
                     key={option.name}
                     type="button"
+                    disabled={tutorialMode}
                     className={option.name === category ? 'selected' : ''}
                     onClick={() => {
                       setCategory(option.name)
@@ -251,7 +279,7 @@ export default function DropComposer({
             className="composer-publish"
             type="button"
             onClick={publish}
-            disabled={busy}
+            disabled={busy || tutorialMode}
             aria-label="Send Thought"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -265,13 +293,19 @@ export default function DropComposer({
         <div className="composer-writing-area">
           <textarea
             className="composer-card-input"
+            data-tutorial-id="card-text"
             value={body}
             onChange={(event) => setBody(event.target.value)}
             placeholder="You’re marking your spot…"
             aria-label="Thought text"
-            readOnly={textEntryLocked}
-            autoFocus
+            readOnly={textEntryLocked || tutorialMode}
+            autoFocus={!tutorialMode}
           />
+          {tutorialMode && tutorialStep === TUTORIAL.CARD_TEXT && (
+            <span className="composer-tutorial-typing" aria-hidden="true">
+              A little thing I noticed…
+            </span>
+          )}
           <span className={words > THOUGHT_WORD_LIMIT ? 'composer-word-count danger' : 'composer-word-count'}>
             {words}/{THOUGHT_WORD_LIMIT}
           </span>
@@ -293,7 +327,7 @@ export default function DropComposer({
             aria-describedby="composer-bgm-help"
             inputMode="url"
             maxLength={MUSIC_LINK_MAX_LENGTH}
-            readOnly={textEntryLocked}
+            readOnly={textEntryLocked || tutorialMode}
           />
         </label>
         {(musicFeedback || !musicUrl.trim()) && (
@@ -321,11 +355,18 @@ export default function DropComposer({
 
         <div className="composer-tool-area">
           {activeTool === 'background' && (
-            <div className="composer-popover background-popover" role="group" aria-label="Choose background">
+            <div
+              className="composer-popover background-popover"
+              data-tutorial-id="card-paper-row"
+              role="group"
+              aria-label="Choose background"
+            >
               {BACKGROUND_OPTIONS.map((option) => (
                 <button
                   key={option.value}
+                  data-tutorial-id={option.type === 'photo' ? 'card-camera' : undefined}
                   type="button"
+                  disabled={tutorialMode}
                   className={selectedBackgroundValue === option.value ? 'selected' : ''}
                   onClick={() => selectBackground(option)}
                   aria-label={option.label}
@@ -347,6 +388,7 @@ export default function DropComposer({
                 <button
                   key={option.value}
                   type="button"
+                  disabled={tutorialMode}
                   className={`font-${option.value} ${fontFamily === option.value ? 'selected' : ''}`}
                   onClick={() => {
                     setFontFamily(option.value)
@@ -365,6 +407,7 @@ export default function DropComposer({
                 <button
                   key={option.value}
                   type="button"
+                  disabled={tutorialMode}
                   className={fontSize === option.value ? 'selected' : ''}
                   onClick={() => {
                     setFontSize(option.value)
@@ -380,6 +423,7 @@ export default function DropComposer({
           <div className="composer-toolbar" aria-label="Card style tools">
             <button
               type="button"
+              disabled={tutorialMode}
               className={activeTool === 'background' ? 'active' : ''}
               onClick={() => setActiveTool((value) => value === 'background' ? null : 'background')}
               aria-label="Background"
@@ -389,7 +433,9 @@ export default function DropComposer({
             </button>
             <button
               type="button"
+              disabled={tutorialMode}
               className={activeTool === 'font' ? 'active' : ''}
+              data-tutorial-id="card-font"
               onClick={() => setActiveTool((value) => value === 'font' ? null : 'font')}
               aria-label="Font"
               aria-expanded={activeTool === 'font'}
@@ -398,7 +444,9 @@ export default function DropComposer({
             </button>
             <button
               type="button"
+              disabled={tutorialMode}
               className={activeTool === 'size' ? 'active' : ''}
+              data-tutorial-id="card-font-size"
               onClick={() => setActiveTool((value) => value === 'size' ? null : 'size')}
               aria-label="Text size"
               aria-expanded={activeTool === 'size'}
@@ -407,9 +455,20 @@ export default function DropComposer({
             </button>
           </div>
         </div>
+
+        <button
+          className="composer-blank-paper-exit"
+          data-tutorial-id={tutorialStep === TUTORIAL.CARD_EXIT ? 'card-blank-exit' : undefined}
+          type="button"
+          disabled={tutorialMode && tutorialStep !== TUTORIAL.CARD_EXIT}
+          onClick={exitFromBlankPaper}
+          aria-label={tutorialMode
+            ? 'Finish the tutorial without publishing'
+            : 'Discard this draft'}
+        />
       </section>
 
-      {cameraOpen && (
+      {cameraOpen && !tutorialMode && (
         <LiveCamera
           onCancel={() => setCameraOpen(false)}
           onCapture={(blob) => {

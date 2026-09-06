@@ -18,7 +18,6 @@ import { getDropPermission } from './lib/dropIntent'
 import {
   completeOnboarding,
   getMapStatus,
-  isOnboardingComplete,
   markTipShown,
   shouldShowTip,
   friendlyPublishError,
@@ -27,6 +26,9 @@ import {
 import { shouldDismissProgress } from './lib/mapPresentation'
 import { setPageZoomLocked } from './lib/mapLifecycle'
 import { getSafeAnchor } from './lib/privacy'
+import TutorialOverlay from './tutorial/TutorialOverlay'
+import { TUTORIAL } from './tutorial/tutorialSteps'
+import { useTutorialController } from './tutorial/useTutorialController'
 
 const EMPTY_STATS = {
   active_locations: 0,
@@ -36,8 +38,41 @@ const EMPTY_STATS = {
   progress: 0,
 }
 
+function makeTutorialThoughts() {
+  const now = Date.now()
+  return [
+    {
+      id: 'tutorial-thought-newest',
+      category: 'Nature',
+      body: 'New leaves found the afternoon light before I did.',
+      background_type: 'lined',
+      background_color: 'white',
+      font_family: 'caveat',
+      font_size: 16,
+      image_url: null,
+      music_url: null,
+      created_at: new Date(now).toISOString(),
+      is_own: false,
+    },
+    {
+      id: 'tutorial-thought-oldest',
+      category: 'Sound',
+      body: 'A tram bell, two magpies, then a tiny pocket of quiet.',
+      background_type: 'dots',
+      background_color: 'white',
+      font_family: 'patrick-hand',
+      font_size: 14,
+      image_url: null,
+      music_url: null,
+      created_at: new Date(now - 60000).toISOString(),
+      is_own: false,
+    },
+  ]
+}
+
 export default function App() {
   const deviceId = useMemo(() => getDeviceId(), [])
+  const tutorial = useTutorialController()
   const [userLocation, setUserLocation] = useState(DEMO_MODE ? DEMO_LOCATION : null)
   const [mapLocations, setMapLocations] = useState([])
   const [stats, setStats] = useState(EMPTY_STATS)
@@ -48,7 +83,7 @@ export default function App() {
   const [activeLocation, setActiveLocation] = useState(null)
   const [toast, setToast] = useState('')
   const [coachTip, setCoachTip] = useState(null)
-  const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingComplete())
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const [loading, setLoading] = useState(true)
   const [progressDismissed, setProgressDismissed] = useState(false)
   const [areaLabel, setAreaLabel] = useState('MELBOURNE · FITZROY')
@@ -224,26 +259,39 @@ export default function App() {
   function completeTour() {
     completeOnboarding()
     setShowOnboarding(false)
+  }
 
-    if (!DEMO_MODE) {
-      window.setTimeout(() => {
-        showCoachOnce('locate', {
-          position: 'bottom-right',
-          eyebrow: 'First step',
-          title: 'Find yourself on the map',
-          body: 'Tap the ◎ location control. You’ll need location access to unlock and drop Thoughts.',
-        })
-      }, 200)
-    } else {
-      window.setTimeout(() => {
-        showCoachOnce('map_basics', {
-          position: 'bottom-left',
-          eyebrow: 'Try the map',
-          title: 'Zoom out, then zoom back in',
-          body: 'Far away, Thoughts glow like warm fireflies. Closer in, their category icons and sizes become visible.',
-        })
-      }, 200)
+  function replayAnimatedTutorial() {
+    setShowOnboarding(false)
+    setCoachTip(null)
+    setSheetOpen(false)
+    setThoughts([])
+    setActiveLocation(null)
+    setDropDraft(null)
+    tutorial.replay()
+  }
+
+  function skipAnimatedTutorial() {
+    setSheetOpen(false)
+    setThoughts([])
+    setActiveLocation(null)
+    setDropDraft(null)
+    tutorial.skip()
+  }
+
+  function openTutorialThought(coordinate) {
+    const location = {
+      location_id: 'tutorial-location',
+      suburb: 'Fitzroy',
+      lng: coordinate[0],
+      lat: coordinate[1],
+      is_mine: false,
+      is_unlocked: true,
     }
+    setActiveLocation(location)
+    setThoughts(makeTutorialThoughts())
+    setSheetOpen(true)
+    tutorial.onThoughtOpened()
   }
 
   function toggleMine() {
@@ -274,13 +322,21 @@ export default function App() {
   })
 
   return (
-    <main className="app">
+    <main
+      className={`app ${tutorial.active ? 'tutorial-active' : ''}`.trim()}
+      data-tutorial-step={tutorial.step}
+    >
       <MapView
         locations={visibleLocations}
         progress={Number(stats.progress || 0)}
         userLocation={userLocation}
         dropCoordinate={dropDraft && !dropDraft.category ? dropDraft.coordinate : null}
         onDropCategorySelect={(category, privacy) => {
+          if (dropDraft?.tutorial) {
+            setDropDraft((current) => current ? { ...current, category, privacy } : null)
+            tutorial.onNatureSelected()
+            return
+          }
           setDropDraft((current) => current ? {
             ...current,
             category,
@@ -318,9 +374,25 @@ export default function App() {
           )
         }}
         onAreaLabelChange={setAreaLabel}
+        tutorialStep={tutorial.step}
+        tutorialLocateRequest={tutorial.locateRequest}
+        onMapReady={tutorial.startIfNeeded}
+        onTutorialZoom={tutorial.onZoom}
+        onTutorialLocated={tutorial.onLocated}
+        onTutorialLocationError={tutorial.onLocationError}
+        onTutorialThoughtOpen={openTutorialThought}
+        onTutorialLongPress={(coordinate) => {
+          setDropDraft({
+            coordinate,
+            category: null,
+            targetLocationId: null,
+            tutorial: true,
+          })
+          tutorial.onTutorialLongPress()
+        }}
       />
 
-      {mapStatus && !showOnboarding && (
+      {mapStatus && !showOnboarding && !tutorial.active && (
         <div className="map-status" role="status" aria-live="polite">
           <strong>{mapStatus.title}</strong>
           <span>{mapStatus.body}</span>
@@ -335,6 +407,7 @@ export default function App() {
         className={mineMode ? 'mine-toggle active' : 'mine-toggle'}
         onClick={toggleMine}
         type="button"
+        disabled={tutorial.active}
         aria-pressed={mineMode}
         aria-label={mineMode ? 'Show all Thoughts' : 'Show only my Thoughts'}
         title="Mine"
@@ -344,11 +417,13 @@ export default function App() {
 
       <button
         className="guide-button"
+        data-tutorial-id="guide-button"
         onClick={() => {
           setCoachTip(null)
           setShowOnboarding(true)
         }}
         type="button"
+        disabled={tutorial.active}
         aria-label="Open PopBy guide"
       >
         ?
@@ -361,7 +436,7 @@ export default function App() {
       <CoachTip tip={coachTip} onDismiss={dismissCoach} />
 
       {showOnboarding && (
-        <OnboardingTour onComplete={completeTour} />
+        <OnboardingTour onComplete={completeTour} onReplay={replayAnimatedTutorial} />
       )}
 
       {dropDraft?.category && (
@@ -373,6 +448,12 @@ export default function App() {
           targetLocationId={dropDraft.targetLocationId}
           privacyResult={dropDraft.privacy}
           showAnchorNotice={dropDraft.anchorMoved}
+          tutorialMode={Boolean(dropDraft.tutorial)}
+          tutorialStep={tutorial.step}
+          onTutorialFinish={() => {
+            setDropDraft(null)
+            tutorial.finish()
+          }}
           onClose={() => setDropDraft(null)}
           onPublished={async () => {
             showToast('Thought dropped')
@@ -399,9 +480,29 @@ export default function App() {
             setThoughts((current) => current.filter((thought) => thought.id !== thoughtId))
             await refresh()
           }}
-          onAdd={(location) => beginDropAtLocation(location, true)}
+          onAdd={(location) => {
+            if (tutorial.step === TUTORIAL.CARD_ADD) {
+              setSheetOpen(false)
+              setThoughts([])
+              setActiveLocation(null)
+              tutorial.onCardAddSelected()
+              return
+            }
+            beginDropAtLocation(location, true)
+          }}
+          tutorialMode={tutorial.step === TUTORIAL.CARD_BROWSE || tutorial.step === TUTORIAL.CARD_ADD}
+          onTutorialBrowse={tutorial.onCardBrowsed}
         />
       )}
+
+      <TutorialOverlay
+        step={tutorial.step}
+        zoom={tutorial.zoom}
+        locationError={tutorial.locationError}
+        onAdvance={tutorial.next}
+        onRetryLocation={tutorial.retryLocation}
+        onSkip={skipAnimatedTutorial}
+      />
     </main>
   )
 }

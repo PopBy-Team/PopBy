@@ -6,6 +6,10 @@ import {
   getFanSelectionClass,
 } from '../lib/categoryFan'
 import { animateAnchorDrift } from '../lib/anchorDrift'
+import {
+  TUTORIAL,
+  isTutorialCategoryAllowed,
+} from '../tutorial/tutorialSteps'
 
 export default function DropCategoryFan({
   map,
@@ -14,6 +18,8 @@ export default function DropCategoryFan({
   onCancel,
   onResolveAnchor,
   onResolveError,
+  tutorialMode = false,
+  tutorialStep = TUTORIAL.OFF,
 }) {
   const [screenPoint, setScreenPoint] = useState(null)
   const [pinScreenPoint, setPinScreenPoint] = useState(null)
@@ -58,7 +64,7 @@ export default function DropCategoryFan({
 
     const cancelOnDrag = () => onCancel?.()
     const cancelOnEscape = (event) => {
-      if (event.key === 'Escape') onCancel?.()
+      if (event.key === 'Escape' && !tutorialMode) onCancel?.()
     }
 
     update()
@@ -73,13 +79,28 @@ export default function DropCategoryFan({
       map.off('dragstart', cancelOnDrag)
       window.removeEventListener('keydown', cancelOnEscape)
     }
-  }, [map, coordinate, onCancel])
+  }, [map, coordinate, onCancel, tutorialMode])
 
   async function chooseCategory(category) {
     if (selectedCategory) return
+    if (!isTutorialCategoryAllowed(tutorialStep, category)) return
     setSelectedCategory(category)
 
     try {
+      if (tutorialMode) {
+        await new Promise((resolve) => {
+          selectionTimerRef.current = window.setTimeout(resolve, 160)
+        })
+        onSelect?.(category, {
+          coordinate,
+          insideBuilding: false,
+          snapped: false,
+          distanceMeters: 0,
+          tutorial: true,
+        })
+        return
+      }
+
       const privacy = await onResolveAnchor?.(coordinate, category)
       const safeCoordinate = privacy?.coordinate || coordinate
       const shouldDrift = Boolean(
@@ -152,9 +173,10 @@ export default function DropCategoryFan({
         {CATEGORIES.map((category, index) => (
           <button
             key={category.name}
-            className={`drop-category-bubble ${getFanSelectionClass(selectedCategory, category.name)}`.trim()}
+            className={`drop-category-bubble ${getFanSelectionClass(selectedCategory, category.name)} ${tutorialMode && category.name !== 'Nature' ? 'tutorial-disabled' : ''} ${tutorialMode && category.name === 'Nature' ? 'tutorial-nature' : ''}`.trim()}
+            data-tutorial-id={category.name === 'Nature' ? 'category-nature' : undefined}
             type="button"
-            disabled={Boolean(selectedCategory)}
+            disabled={Boolean(selectedCategory) || !isTutorialCategoryAllowed(tutorialStep, category.name)}
             onClick={() => chooseCategory(category.name)}
             style={{
               '--fan-x': `${positions[index].x}px`,

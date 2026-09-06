@@ -166,7 +166,8 @@ switch it to `false`.
 
 The updated starter includes a complete first-run guidance system:
 
-- 6-step onboarding on first open
+- first-open animated field guide built on the real map, Thought reader,
+  category fan and composer; its practice draft never publishes or consumes limits
 - contextual tips for location, unlock distance, locked suburbs, drop distance and Mine
 - first-publish Nearby rules (50m, 5/hour/device, 3/hour/location), followed by
   contextual rule messages only when an action exceeds a limit
@@ -178,6 +179,6 @@ The updated starter includes a complete first-run guidance system:
   whenever they feel like it; existing Thought points can also be held to add to
   that shared place
 - the guide names the three supported BGM sources before the composer is opened
-- `?` button to replay the guide
+- `?` button keeps the original 6-step reference guide and offers an animated replay
 
 See `GUIDANCE.md` for the complete trigger/copy/presentation matrix.

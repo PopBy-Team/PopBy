@@ -10,6 +10,7 @@ import {
   formatThoughtTimestamp,
   getSwipeIndicatorState,
 } from '../lib/cardPresentation'
+import { getTutorialDraftPolicy } from '../tutorial/tutorialSteps'
 
 export default function ThoughtSheet({
   thoughts,
@@ -19,10 +20,14 @@ export default function ThoughtSheet({
   onReported,
   onDeleted,
   onAdd,
+  tutorialMode = false,
+  onTutorialBrowse,
 }) {
   const deck = useMemo(() => buildThoughtDeck(thoughts), [thoughts])
   const [index, setIndex] = useState(0)
-  const [showCardGuide, setShowCardGuide] = useState(() => shouldShowTip('card'))
+  const [showCardGuide, setShowCardGuide] = useState(
+    () => !tutorialMode && shouldShowTip('card'),
+  )
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -30,6 +35,7 @@ export default function ThoughtSheet({
   const [swipeState, setSwipeState] = useState(() => getSwipeIndicatorState())
   const touchStart = useRef(null)
   const enteredAt = useRef(performance.now())
+  const tutorialPolicy = getTutorialDraftPolicy(tutorialMode)
 
   const current = deck[index]
 
@@ -44,20 +50,20 @@ export default function ThoughtSheet({
     setActionError('')
 
     return () => {
-      if (!current) return
+      if (!current || !tutorialPolicy.mayRecordDwell) return
       const ms = Math.round(performance.now() - enteredAt.current)
       if (ms < 250) return
       void recordDwell(deviceId, current.id, ms).catch(() => {})
     }
-  }, [index, current?.id, deviceId])
+  }, [index, current?.id, deviceId, tutorialPolicy.mayRecordDwell])
 
   useEffect(() => {
     const closeOnEscape = (event) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape' && !tutorialMode) onClose()
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [onClose])
+  }, [onClose, tutorialMode])
 
   if (!current) return null
 
@@ -77,6 +83,7 @@ export default function ThoughtSheet({
   }
 
   async function runAction() {
+    if (tutorialMode) return
     try {
       setBusy(true)
       setActionError('')
@@ -104,7 +111,7 @@ export default function ThoughtSheet({
 
   return (
     <div
-      className={showCardGuide ? 'thought-reader-stage has-card-guide' : 'thought-reader-stage'}
+      className={`${showCardGuide ? 'thought-reader-stage has-card-guide' : 'thought-reader-stage'} ${tutorialMode ? 'is-tutorial-reader' : ''}`.trim()}
       role="dialog"
       aria-modal="true"
       aria-label="Thoughts at this location"
@@ -143,6 +150,7 @@ export default function ThoughtSheet({
             })
             if (direction === 'next') next()
             if (direction === 'previous') previous()
+            if (direction) onTutorialBrowse?.(direction)
             touchStart.current = null
           }}
           onPointerCancel={() => { touchStart.current = null }}
@@ -154,6 +162,7 @@ export default function ThoughtSheet({
             <button
               className="thought-options-button"
               type="button"
+              disabled={tutorialMode}
               onClick={() => {
                 setOptionsOpen((value) => !value)
                 setConfirming(false)
@@ -202,7 +211,7 @@ export default function ThoughtSheet({
             </div>
           )}
 
-          <div className="card-body reader-card-body">
+          <div className="card-body reader-card-body" data-tutorial-id="thought-card">
             {current.body || <em>No words. Just this moment.</em>}
           </div>
 
@@ -239,6 +248,7 @@ export default function ThoughtSheet({
         </article>
         <button
           className="reader-add-button"
+          data-tutorial-id="reader-add"
           type="button"
           onClick={() => onAdd?.(location)}
         >

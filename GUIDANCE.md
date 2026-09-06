@@ -2,19 +2,20 @@
 
 The UI uses three levels of guidance:
 
-1. **One-time onboarding tour** — only the mental model.
+1. **One-time animated field guide** — teaches the core loop through real map and card interactions without publishing its practice draft.
 2. **Contextual coach tips** — explain rules exactly when a user triggers them.
-3. **Inline guidance** — stays inside Create/Card/Progress UI where limits matter.
+3. **Original reference guide + inline guidance** — the lower-left `?` keeps the six-page reference while limits stay near the actions they govern.
 
 ## Full user journey
 
 | Moment | User action | Guidance | Presentation |
 |---|---|---|---|
-| First open | Arrives on map | “No sign-up… anonymous device ID…” | 6-step onboarding card |
-| First open | Learns area model | Explore the open area; grey areas await unlock | Onboarding step 2 |
-| First open | Learns progress | 15 locations / 50 Thoughts / 30 contributors / 50 unlocks | Onboarding + simple progress bar |
-| First open | Location | Tap ◎; location is needed for 50m rules | Bottom-right coach tip |
-| Map | Pan / zoom | Dots far away; category icons closer in | Onboarding + one-time map coach |
+| First open | Zooms in and out | Fireflies become category icons as the map scale changes | Live map spotlight + animated pinch cue |
+| First open | Taps ◎ | Location is needed for nearby unlock and Create rules | Live control spotlight; retry and Skip remain available |
+| First open | Explores practice Thought | Learns icons, distance states, card taps and Add | Temporary in-memory marker + real Thought card UI |
+| First open | Creates practice draft | Long-presses a 20m target, selects Nature and tours every card control | Real long-press, category fan and composer with spotlight targets |
+| Tutorial exit | Taps blank paper | Practice is discarded; no upload, RPC, dwell or rate-limit usage | Small “You’re ready” message pointing to `?` |
+| Map | Pan / zoom | Dots far away; category icons closer in | Map presentation |
 | Locked suburb | Tap grey suburb | “This area isn’t open yet” | Top-left coach tip |
 | Thought | Tap while >120m | “Get closer — unlocks within 50m” | Center coach tip |
 | Thought | Tap at 50–120m | “Approaching…” | Center coach tip |
@@ -38,7 +39,7 @@ The UI uses three levels of guidance:
 | Publish | No safe anchor | Move closer to a public street/path | Inline error |
 | After publish | Success | Use Mine to find own memory | Top-right coach |
 | Mine | Toggle on | Only own locations; remote access to own cards | Top-right coach |
-| Help | Tap ? | Replay onboarding | Onboarding tour |
+| Help | Tap ? | Opens the original six-page reference; its replay link starts the animated field guide | Reference guide |
 
 ## Copy principles
 

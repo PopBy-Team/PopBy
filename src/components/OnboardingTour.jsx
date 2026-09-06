@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ONBOARDING_STEPS } from '../lib/guidance'
 
-export default function OnboardingTour({ onComplete }) {
+export default function OnboardingTour({ onComplete, onReplay }) {
   const [index, setIndex] = useState(0)
   const step = ONBOARDING_STEPS[index]
   const isLast = index === ONBOARDING_STEPS.length - 1
@@ -49,6 +49,12 @@ export default function OnboardingTour({ onComplete }) {
         )}
 
         <div className="onboarding-note">{step.note}</div>
+
+        {onReplay && (
+          <button className="onboarding-replay" type="button" onClick={onReplay}>
+            Replay animated field guide
+          </button>
+        )}
 
         <div className="onboarding-dots" aria-hidden="true">
           {ONBOARDING_STEPS.map((_, i) => (

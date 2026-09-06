@@ -13,6 +13,7 @@ import {
   fitMapToRadius,
   MAP_MAX_ZOOM,
   MAP_3D_VIEW,
+  distanceMeters,
   getMarkerPresentation,
   getViewportMode,
   getViewportWidthMeters,
@@ -33,6 +34,12 @@ import {
   syncCurrentLocationMarker,
   syncThoughtMarkerCoordinate,
 } from '../lib/mapPresentation'
+import {
+  TUTORIAL,
+  getTutorialGhostCoordinate,
+  getTutorialMarkerPresentation,
+  shouldRestoreTutorialMap,
+} from '../tutorial/tutorialSteps'
 import DropCategoryFan from './DropCategoryFan'
 
 const FITZROY_CENTER = [144.9788, -37.8005]
@@ -70,6 +77,14 @@ export default function MapView({
   onDropAnchorResolve,
   onDropResolveError,
   onDropCancel,
+  tutorialStep = TUTORIAL.OFF,
+  tutorialLocateRequest = 0,
+  onMapReady,
+  onTutorialZoom,
+  onTutorialLocated,
+  onTutorialLocationError,
+  onTutorialThoughtOpen,
+  onTutorialLongPress,
 }) {
   const [bearing, setBearing] = useState(MAP_3D_VIEW.bearing)
   const containerRef = useRef(null)
@@ -77,6 +92,9 @@ export default function MapView({
   const markersRef = useRef(new Map())
   const markerHoldCleanupsRef = useRef(new Map())
   const currentLocationMarkerRef = useRef(null)
+  const tutorialMarkerRef = useRef(null)
+  const tutorialGhostCoordinateRef = useRef(null)
+  const tutorialGhostMissTimerRef = useRef(null)
   const syncCurrentLocationRef = useRef(null)
   const presentationSyncRef = useRef(null)
   const syncMarkersRef = useRef(null)
@@ -90,6 +108,15 @@ export default function MapView({
   const lockedClickRef = useRef(onLockedSuburbClick)
   const viewportModeChangeRef = useRef(onViewportModeChange)
   const areaLabelChangeRef = useRef(onAreaLabelChange)
+  const tutorialStepRef = useRef(tutorialStep)
+  const previousTutorialStepRef = useRef(tutorialStep)
+  const mapReadyRef = useRef(onMapReady)
+  const tutorialZoomRef = useRef(onTutorialZoom)
+  const tutorialLocatedRef = useRef(onTutorialLocated)
+  const tutorialLocationErrorRef = useRef(onTutorialLocationError)
+  const tutorialThoughtOpenRef = useRef(onTutorialThoughtOpen)
+  const tutorialLongPressRef = useRef(onTutorialLongPress)
+  const zoomStartRef = useRef(null)
 
   useEffect(() => { clickRef.current = onLocationClick }, [onLocationClick])
   useEffect(() => {
@@ -105,6 +132,19 @@ export default function MapView({
   useEffect(() => {
     areaLabelChangeRef.current = onAreaLabelChange
   }, [onAreaLabelChange])
+  useEffect(() => { tutorialStepRef.current = tutorialStep }, [tutorialStep])
+  useEffect(() => { mapReadyRef.current = onMapReady }, [onMapReady])
+  useEffect(() => { tutorialZoomRef.current = onTutorialZoom }, [onTutorialZoom])
+  useEffect(() => { tutorialLocatedRef.current = onTutorialLocated }, [onTutorialLocated])
+  useEffect(() => {
+    tutorialLocationErrorRef.current = onTutorialLocationError
+  }, [onTutorialLocationError])
+  useEffect(() => {
+    tutorialThoughtOpenRef.current = onTutorialThoughtOpen
+  }, [onTutorialThoughtOpen])
+  useEffect(() => {
+    tutorialLongPressRef.current = onTutorialLongPress
+  }, [onTutorialLongPress])
 
   useEffect(() => {
     if (mapRef.current) return
@@ -147,7 +187,9 @@ export default function MapView({
       syncCurrentLocationRef.current?.(coordinate)
       onUserLocationRef.current?.(coordinate)
       fitMapToRadius(map, coordinate)
+      tutorialLocatedRef.current?.(coordinate)
     })
+    geolocate.on('error', () => tutorialLocationErrorRef.current?.())
 
     const syncCurrentLocation = (coordinate) => {
       if (!coordinate) return
@@ -240,6 +282,7 @@ export default function MapView({
         map.getCenter().lng,
         map.getCenter().lat,
       ]))
+      mapReadyRef.current?.()
 
       map.on('click', 'locked-suburb-hit-area', (event) => {
         const feature = event.features?.[0]
@@ -254,12 +297,51 @@ export default function MapView({
         if (loc) clickRef.current?.(loc)
       })
 
-      attachMapLongPress(map, (coordinate) => longPressRef.current?.(coordinate))
+      attachMapLongPress(map, (coordinate) => {
+        if (tutorialStepRef.current === TUTORIAL.LONG_PRESS_GHOST) {
+          const ghostCoordinate = tutorialGhostCoordinateRef.current
+          if (distanceMeters(coordinate, ghostCoordinate) <= 12) {
+            tutorialLongPressRef.current?.(coordinate)
+            return
+          }
+
+          const ghostElement = tutorialMarkerRef.current?.getElement?.()
+          if (ghostElement) {
+            ghostElement.classList.remove('is-missed')
+            void ghostElement.offsetWidth
+            ghostElement.classList.add('is-missed')
+            window.clearTimeout(tutorialGhostMissTimerRef.current)
+            tutorialGhostMissTimerRef.current = window.setTimeout(() => {
+              ghostElement.classList.remove('is-missed')
+            }, 800)
+          }
+          return
+        }
+
+        if (tutorialStepRef.current !== TUTORIAL.OFF) return
+        longPressRef.current?.(coordinate)
+      })
       syncMarkers(map)
+
+      map.on('zoomstart', () => {
+        if (tutorialStepRef.current === TUTORIAL.ZOOM) {
+          zoomStartRef.current = map.getZoom()
+        }
+      })
 
       map.on('zoomend', () => {
         const viewportMode = getViewportMode(getViewportWidthMeters(map))
         viewportModeChangeRef.current?.(viewportMode)
+        if (
+          tutorialStepRef.current === TUTORIAL.ZOOM
+          && Number.isFinite(zoomStartRef.current)
+        ) {
+          const delta = map.getZoom() - zoomStartRef.current
+          if (Math.abs(delta) >= 0.12) {
+            tutorialZoomRef.current?.(delta > 0 ? 'in' : 'out')
+          }
+        }
+        zoomStartRef.current = null
       })
 
       map.on('moveend', () => {
@@ -311,12 +393,14 @@ export default function MapView({
           el.className = 'thought-marker'
           el.setAttribute('aria-label', 'Open Thoughts at this location')
           const openMarker = () => {
+            if (tutorialStepRef.current !== TUTORIAL.OFF) return
             const latest = locationsRef.current.find(
               (x) => x.location_id === loc.location_id
             )
             if (latest) clickRef.current?.(latest)
           }
           const cleanupHold = attachElementLongPress(el, () => {
+            if (tutorialStepRef.current !== TUTORIAL.OFF) return
             const latest = locationsRef.current.find(
               (x) => x.location_id === loc.location_id
             )
@@ -341,7 +425,8 @@ export default function MapView({
           // Mapbox assigns image semantics to Marker elements. These markers are
           // interactive, so restore button semantics after Marker initialization.
           el.setAttribute('role', 'button')
-          el.tabIndex = 0
+          el.disabled = tutorialStepRef.current !== TUTORIAL.OFF
+          el.tabIndex = el.disabled ? -1 : 0
 
           markersRef.current.set(loc.location_id, marker)
         }
@@ -381,6 +466,10 @@ export default function MapView({
       markerHoldCleanupsRef.current.clear()
       currentLocationMarkerRef.current?.remove()
       currentLocationMarkerRef.current = null
+      tutorialMarkerRef.current?.remove()
+      tutorialMarkerRef.current = null
+      tutorialGhostCoordinateRef.current = null
+      window.clearTimeout(tutorialGhostMissTimerRef.current)
       syncCurrentLocationRef.current = null
       syncMarkersRef.current = null
       geolocateRef.current = null
@@ -402,10 +491,107 @@ export default function MapView({
   }, [userLocation])
 
   useEffect(() => {
+    const tutorialActive = tutorialStep !== TUTORIAL.OFF
+    for (const marker of markersRef.current.values()) {
+      const element = marker.getElement()
+      element.disabled = tutorialActive
+      element.tabIndex = tutorialActive ? -1 : 0
+    }
+  }, [tutorialStep])
+
+  useEffect(() => {
     const map = mapRef.current
     const source = map?.getSource('suburbs')
     source?.setData(makeSuburbsGeoJSON(progress >= 1))
   }, [progress])
+
+  useEffect(() => {
+    if (!tutorialLocateRequest) return
+    geolocateRef.current?.trigger()
+  }, [tutorialLocateRequest])
+
+  useEffect(() => {
+    const map = mapRef.current
+    tutorialMarkerRef.current?.remove()
+    tutorialMarkerRef.current = null
+    tutorialGhostCoordinateRef.current = null
+
+    if (!map || !userLocation) return undefined
+
+    const markerPresentation = getTutorialMarkerPresentation(tutorialStep)
+    if (!markerPresentation) return undefined
+    const showsThought = markerPresentation.interactive
+    const showsDropTarget = !showsThought
+
+    const coordinate = getTutorialGhostCoordinate(userLocation)
+    tutorialGhostCoordinateRef.current = coordinate
+
+    if (tutorialStep === TUTORIAL.THOUGHT_MEANING || showsDropTarget) {
+      map.easeTo({
+        center: userLocation,
+        zoom: Math.max(17, map.getZoom()),
+        pitch: 0,
+        bearing: 0,
+        duration: 520,
+      })
+    }
+
+    const element = document.createElement(showsThought ? 'button' : 'div')
+    const visual = document.createElement('span')
+    element.className = markerPresentation.anchorClass
+    element.dataset.tutorialId = markerPresentation.target
+    visual.className = markerPresentation.visualClass
+    visual.textContent = markerPresentation.icon
+    visual.setAttribute('aria-hidden', 'true')
+    element.append(visual)
+
+    if (showsThought) {
+      element.type = 'button'
+      element.setAttribute('aria-label', 'Open the tutorial Thought')
+      element.addEventListener('click', (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        if (tutorialStepRef.current === TUTORIAL.OPEN_THOUGHT) {
+          tutorialThoughtOpenRef.current?.(coordinate)
+        }
+      })
+    } else {
+      element.setAttribute('aria-hidden', 'true')
+    }
+
+    const marker = new mapboxgl.Marker({
+      element,
+      anchor: 'center',
+      pitchAlignment: 'viewport',
+      rotationAlignment: 'viewport',
+      occludedOpacity: 1,
+    }).setLngLat(coordinate).addTo(map)
+
+    if (showsThought) {
+      element.setAttribute('role', 'button')
+      element.tabIndex = 0
+    }
+
+    tutorialMarkerRef.current = marker
+
+    return () => {
+      marker.remove()
+      if (tutorialMarkerRef.current === marker) tutorialMarkerRef.current = null
+      tutorialGhostCoordinateRef.current = null
+    }
+  }, [tutorialStep, userLocation])
+
+  useEffect(() => {
+    const previousStep = previousTutorialStepRef.current
+    previousTutorialStepRef.current = tutorialStep
+    if (!shouldRestoreTutorialMap(previousStep, tutorialStep)) return
+
+    mapRef.current?.easeTo({
+      pitch: MAP_3D_VIEW.pitch,
+      bearing: MAP_3D_VIEW.bearing,
+      duration: 520,
+    })
+  }, [tutorialStep])
 
   function recenter() {
     const map = mapRef.current
@@ -413,6 +599,7 @@ export default function MapView({
 
     if (map && coordinate) {
       fitMapToRadius(map, coordinate)
+      tutorialLocatedRef.current?.(coordinate)
       return
     }
 
@@ -429,9 +616,13 @@ export default function MapView({
   return (
     <>
       <div ref={containerRef} className="map" role="region" aria-label="PopBy map" />
+      {tutorialStep === TUTORIAL.ZOOM && (
+        <div className="tutorial-map-gesture-target" data-tutorial-id="map" aria-hidden="true" />
+      )}
       <button
         className="map-compass"
         type="button"
+        disabled={tutorialStep !== TUTORIAL.OFF}
         onClick={resetBearing}
         aria-label="Reset map direction"
         title="Reset map direction"
@@ -446,7 +637,9 @@ export default function MapView({
       </button>
       <button
         className="recenter-button"
+        data-tutorial-id="geolocate"
         type="button"
+        disabled={tutorialStep !== TUTORIAL.OFF && tutorialStep !== TUTORIAL.LOCATE}
         onClick={recenter}
         aria-label="Back to my location"
         title="Back to my location"
@@ -464,6 +657,8 @@ export default function MapView({
           onResolveAnchor={onDropAnchorResolve}
           onResolveError={onDropResolveError}
           onCancel={onDropCancel}
+          tutorialMode={tutorialStep === TUTORIAL.CHOOSE_NATURE}
+          tutorialStep={tutorialStep}
         />
       )}
     </>

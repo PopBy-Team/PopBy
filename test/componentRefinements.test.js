@@ -23,10 +23,27 @@ test('drop pin is a larger borderless hollow marker and the fan uses an equal-ra
   assert.match(fan, /radiusY:\s*124/)
 })
 
-test('composer locks typing while a style menu is open and uses a camera symbol', async () => {
-  const composer = await source('../src/components/DropComposer.jsx')
+test('composer locks typing and persistent controls throughout a tutorial draft', async () => {
+  const [composer, reader, app, map, overlay] = await Promise.all([
+    source('../src/components/DropComposer.jsx'),
+    source('../src/components/ThoughtSheet.jsx'),
+    source('../src/App.jsx'),
+    source('../src/components/MapView.jsx'),
+    source('../src/tutorial/TutorialOverlay.jsx'),
+  ])
 
-  assert.match(composer, /readOnly=\{textEntryLocked\}/)
+  assert.match(composer, /readOnly=\{textEntryLocked \|\| tutorialMode\}/)
+  assert.match(composer, /disabled=\{tutorialMode\}/)
+  assert.match(composer, /disabled=\{busy \|\| tutorialMode\}/)
+  assert.match(composer, /className="composer-blank-paper-exit"[\s\S]{0,240}onClick=\{exitFromBlankPaper\}/)
+  assert.match(composer, /disabled=\{tutorialMode && tutorialStep !== TUTORIAL\.CARD_EXIT\}/)
+  assert.match(reader, /disabled=\{tutorialMode\}/)
+  assert.match(reader, /if \(tutorialMode\) return/)
+  assert.match(reader, /event\.key === 'Escape' && !tutorialMode/)
+  assert.match(app, /disabled=\{tutorial\.active\}/)
+  assert.match(map, /disabled=\{tutorialStep !== TUTORIAL\.OFF\}/)
+  assert.match(map, /disabled=\{tutorialStep !== TUTORIAL\.OFF && tutorialStep !== TUTORIAL\.LOCATE\}/)
+  assert.match(overlay, /keepFocusInsideGuide/)
   assert.match(composer, /aria-hidden="true">📷</)
   assert.match(composer, /Thought text is required/)
 })
