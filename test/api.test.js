@@ -27,6 +27,29 @@ function memoryStorage() {
   }
 }
 
+function validPublishInput(overrides = {}) {
+  return {
+    p_device_id: '00000000-0000-4000-8000-000000009001',
+    p_user_lat: -37.8005,
+    p_user_lng: 144.9788,
+    p_drop_lat: -37.8005,
+    p_drop_lng: 144.9788,
+    p_safe_lat: -37.8005,
+    p_safe_lng: 144.9788,
+    p_suburb: 'Fitzroy',
+    p_category: 'Moment',
+    p_body: 'A small moment.',
+    p_background_type: 'solid',
+    p_background_color: 'white',
+    p_font_family: 'caveat',
+    p_font_size: 12,
+    p_image_url: null,
+    p_music_url: null,
+    p_target_location_id: null,
+    ...overrides,
+  }
+}
+
 test('getMapLocations passes the device identity to its RPC', async () => {
   const client = recordingClient()
   const api = createApi(client)
@@ -91,7 +114,7 @@ test('demo mode returns a lively Fitzroy map without a database connection', asy
   assert.equal(locations.length, 6)
   assert.equal(
     locations.reduce((total, location) => total + location.thought_count, 0),
-    16,
+    20,
   )
   assert.ok(locations.every((location) => location.suburb === 'Fitzroy'))
   assert.ok(locations.filter((location) => location.thought_count >= 4).length >= 2)
@@ -105,25 +128,21 @@ test('demo progress reflects the visible seed activity', async () => {
 
   assert.deepEqual(progress, {
     active_locations: 6,
-    total_thoughts: 16,
+    total_thoughts: 20,
     unique_contributors: 8,
     successful_unlocks: 10,
     progress: 0.2,
   })
 })
 
-test('demo locations include close, approaching, and far unlock states', async () => {
+test('demo locations include three nearby size tiers plus farther exploration', async () => {
   const api = createApi(null, { demoMode: true })
   const locations = await api.getMapLocations('demo-device')
   const distances = locations.map((location) =>
     distanceMeters([144.9788, -37.8005], [location.lng, location.lat])
   )
 
-  assert.equal(distances.filter((distance) => distance <= 50).length, 1)
-  assert.equal(
-    distances.filter((distance) => distance > 50 && distance <= 120).length,
-    1,
-  )
+  assert.equal(distances.filter((distance) => distance <= 50).length, 3)
   assert.ok(distances.filter((distance) => distance > 120).length >= 1)
 })
 
@@ -161,7 +180,7 @@ test('a successful demo unlock persists and reopens public cards safely', async 
   )
 
   assert.equal(reloadedLocations[0].is_unlocked, true)
-  assert.equal(cards.length, 5)
+  assert.equal(cards.length, 2)
   assert.deepEqual(Object.keys(cards[0]).sort(), [
     'background_color',
     'background_type',
@@ -205,7 +224,7 @@ test('two unique demo reports hide a Thought while duplicate reports count once'
   const [updatedLocation] = await api.getMapLocations('reader-device')
 
   assert.equal(remainingCards.some((card) => card.id === thought.id), false)
-  assert.equal(updatedLocation.thought_count, 4)
+  assert.equal(updatedLocation.thought_count, 1)
 })
 
 test('demo dwell recording accepts the same capped duration contract as Supabase', async () => {
@@ -249,7 +268,7 @@ test('demo publishing stores only the Safe Anchor and merges within 20 metres', 
 
   assert.match(thoughtId, /^[0-9a-f-]{36}$/)
   assert.equal(locations.length, 6)
-  assert.equal(merged.thought_count, 6)
+  assert.equal(merged.thought_count, 3)
   assert.equal(merged.is_mine, true)
   assert.equal(ownCards[0].body, 'A new demo Thought.')
   assert.equal(Object.hasOwn(ownCards[0], 'drop_lat'), false)
@@ -258,7 +277,7 @@ test('demo publishing stores only the Safe Anchor and merges within 20 metres', 
 
 test('demo publishing creates a new node at the Safe Anchor when no node is within 20 metres', async () => {
   const api = createApi(null, { demoMode: true, storage: memoryStorage() })
-  const safeCoordinate = [144.97915, -37.8005]
+  const safeCoordinate = [144.9788, -37.8002]
 
   await api.publishThought({
     p_device_id: '00000000-0000-4000-8000-000000009002',
@@ -284,6 +303,70 @@ test('demo publishing creates a new node at the Safe Anchor when no node is with
   assert.equal(locations.length, 7)
   assert.equal(created.lng, safeCoordinate[0])
   assert.equal(created.lat, safeCoordinate[1])
+})
+
+test('selected-node publishing attaches to the requested safe location', async () => {
+  const api = createApi(null, { demoMode: true, storage: memoryStorage() })
+  const [location] = await api.getMapLocations('writer')
+  const id = await api.publishThought(validPublishInput({
+    p_target_location_id: location.location_id,
+    p_drop_lng: location.lng,
+    p_drop_lat: location.lat,
+    p_safe_lng: location.lng,
+    p_safe_lat: location.lat,
+    p_user_lng: location.lng,
+    p_user_lat: location.lat,
+  }))
+
+  assert.match(id, /^[0-9a-f-]{36}$/)
+  const updated = (await api.getMapLocations('writer'))
+    .find((item) => item.location_id === location.location_id)
+  assert.equal(updated.thought_count, location.thought_count + 1)
+})
+
+test('selected-node publishing rejects a safe anchor farther than 20m', async () => {
+  const api = createApi(null, { demoMode: true, storage: memoryStorage() })
+  const [location] = await api.getMapLocations('writer')
+  const tooFarLng = location.lng + 0.0003
+
+  await assert.rejects(() => api.publishThought(validPublishInput({
+    p_target_location_id: location.location_id,
+    p_drop_lng: tooFarLng,
+    p_drop_lat: location.lat,
+    p_safe_lng: tooFarLng,
+    p_safe_lat: location.lat,
+    p_user_lng: tooFarLng,
+    p_user_lat: location.lat,
+  })), {
+    message: 'Selected location is no longer available',
+  })
+})
+
+test('publishing enforces the new body, BGM, and font-size contract', async () => {
+  await assert.rejects(
+    () => createApi(null, { demoMode: true, storage: memoryStorage() })
+      .publishThought(validPublishInput({ p_body: Array(151).fill('word').join(' ') })),
+    { message: '150-word maximum' },
+  )
+  await assert.rejects(
+    () => createApi(null, { demoMode: true, storage: memoryStorage() })
+      .publishThought(validPublishInput({ p_music_url: `https://music.example/${'a'.repeat(301)}` })),
+    { message: 'Music link is too long' },
+  )
+  await assert.rejects(
+    () => createApi(null, { demoMode: true, storage: memoryStorage() })
+      .publishThought(validPublishInput({ p_music_url: 'https://example.com/video' })),
+    { message: 'Invalid music link' },
+  )
+  await assert.doesNotReject(
+    () => createApi(null, { demoMode: true, storage: memoryStorage() })
+      .publishThought(validPublishInput({ p_font_size: 16 })),
+  )
+  await assert.rejects(
+    () => createApi(null, { demoMode: true, storage: memoryStorage() })
+      .publishThought(validPublishInput({ p_font_size: 10 })),
+    { message: 'Invalid card appearance' },
+  )
 })
 
 function demoPublishInput(deviceId, [lng, lat], body = 'Rate limit check') {

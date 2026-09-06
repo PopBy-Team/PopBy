@@ -6,7 +6,18 @@ import {
   markFirstThoughtPublished,
   shouldShowFirstPublishHint,
 } from '../lib/guidance'
-import { CATEGORY_ICONS } from '../data/categories'
+import { CATEGORIES, CATEGORY_ICONS } from '../data/categories'
+import {
+  MUSIC_LINK_MAX_LENGTH,
+  THOUGHT_WORD_LIMIT,
+  countWords,
+} from '../lib/contentRules'
+import {
+  BGM_INVALID_COPY,
+  BGM_SOURCE_HINT,
+  normalizeMusicLink,
+} from '../lib/musicLink'
+import { formatThoughtTimestamp } from '../lib/cardPresentation'
 import {
   BACKGROUND_OPTIONS,
   FONT_OPTIONS,
@@ -15,11 +26,6 @@ import {
   cardAppearanceClassNames,
 } from '../lib/cardAppearance'
 import LiveCamera from './LiveCamera'
-
-function wordCount(value) {
-  const clean = value.trim()
-  return clean ? clean.split(/\s+/).length : 0
-}
 
 function backgroundValue(backgroundType, backgroundColor) {
   if (backgroundType === 'solid') return backgroundColor
@@ -31,15 +37,21 @@ export default function DropComposer({
   initialCategory = 'Moment',
   userLocation,
   deviceId,
+  targetLocationId = null,
+  privacyResult = null,
+  showAnchorNotice = false,
   onClose,
   onPublished,
 }) {
   const [backgroundType, setBackgroundType] = useState('solid')
   const [backgroundColor, setBackgroundColor] = useState('white')
   const [fontFamily, setFontFamily] = useState('caveat')
-  const [fontSize, setFontSize] = useState(14)
+  const [fontSize, setFontSize] = useState(12)
+  const [category, setCategory] = useState(initialCategory)
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
   const [body, setBody] = useState('')
   const [musicUrl, setMusicUrl] = useState('')
+  const [musicFeedback, setMusicFeedback] = useState(null)
   const [photo, setPhoto] = useState(null)
   const [photoPreview, setPhotoPreview] = useState('')
   const [activeTool, setActiveTool] = useState(null)
@@ -47,8 +59,9 @@ export default function DropComposer({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [showFirstHint, setShowFirstHint] = useState(() => shouldShowFirstPublishHint())
+  const [anchorNoticeVisible, setAnchorNoticeVisible] = useState(showAnchorNotice)
 
-  const words = useMemo(() => wordCount(body), [body])
+  const words = useMemo(() => countWords(body), [body])
   const appearanceClasses = cardAppearanceClassNames({
     backgroundType,
     backgroundColor,
@@ -68,16 +81,30 @@ export default function DropComposer({
     return () => URL.revokeObjectURL(url)
   }, [photo])
 
+  useEffect(() => {
+    if (!showAnchorNotice) return undefined
+    setAnchorNoticeVisible(true)
+    const timer = window.setTimeout(() => setAnchorNoticeVisible(false), 2400)
+    return () => window.clearTimeout(timer)
+  }, [showAnchorNotice])
+
   async function publish() {
     setError(null)
 
-    if (words > 200) {
+    if (words > THOUGHT_WORD_LIMIT) {
       setError({
-        title: '200-word maximum',
-        body: 'Shorten this Thought before dropping it.',
+        title: '150-word maximum',
+        body: 'Shorten this Thought before sending it.',
       })
       return
     }
+
+    const normalizedMusic = normalizeMusicLink(musicUrl)
+    if (normalizedMusic.error) {
+      setMusicFeedback(normalizedMusic.error)
+      return
+    }
+    setMusicFeedback(null)
 
     if (backgroundType === 'photo' && !photo) {
       setError({
@@ -89,7 +116,7 @@ export default function DropComposer({
 
     try {
       setBusy(true)
-      const privacy = await getSafeAnchor(rawCoordinate)
+      const privacy = privacyResult || await getSafeAnchor(rawCoordinate)
       const imageUrl = backgroundType === 'photo'
         ? await uploadThoughtPhoto(photo, deviceId)
         : null
@@ -107,14 +134,15 @@ export default function DropComposer({
         p_safe_lat: safeLat,
         p_safe_lng: safeLng,
         p_suburb: 'Fitzroy',
-        p_category: initialCategory,
+        p_category: category,
         p_body: body.trim() || null,
         p_background_type: backgroundType,
         p_background_color: backgroundColor,
         p_font_family: fontFamily,
         p_font_size: fontSize,
         p_image_url: imageUrl,
-        p_music_url: musicUrl.trim() || null,
+        p_music_url: normalizedMusic.url,
+        p_target_location_id: targetLocationId,
       })
 
       markFirstThoughtPublished()
@@ -148,15 +176,21 @@ export default function DropComposer({
 
   return (
     <div
-      className="card-stage"
+      className={showFirstHint ? 'card-stage has-first-hint' : 'card-stage'}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
     >
       {showFirstHint && (
         <div className="first-drop-hint" role="note">
-          <strong>Drop nearby</strong>
-          <span>within 50m · 5/hour per device · 3/hour at one location</span>
+          <strong>Nearby</strong>
+          <span>Within 50m, 5 per hour, 3 per location</span>
+        </div>
+      )}
+
+      {anchorNoticeVisible && (
+        <div className="anchor-moved-notice" role="status">
+          Moved to the nearest street · public paths work best.
         </div>
       )}
 
@@ -169,16 +203,47 @@ export default function DropComposer({
         onPointerDown={(event) => event.stopPropagation()}
       >
         <header className="composer-card-header">
-          <span className="composer-category-icon" aria-label={initialCategory}>
-            {CATEGORY_ICONS[initialCategory]}
-          </span>
+          <div className="composer-category-control">
+            <button
+              className="composer-category-icon"
+              type="button"
+              onClick={() => setCategoryMenuOpen((value) => !value)}
+              aria-label={`Change category. Current category: ${category}`}
+              aria-expanded={categoryMenuOpen}
+            >
+              {CATEGORY_ICONS[category]}
+            </button>
+            {categoryMenuOpen && (
+              <div className="composer-category-menu" role="group" aria-label="Choose category">
+                {CATEGORIES.map((option) => (
+                  <button
+                    key={option.name}
+                    type="button"
+                    className={option.name === category ? 'selected' : ''}
+                    onClick={() => {
+                      setCategory(option.name)
+                      setCategoryMenuOpen(false)
+                    }}
+                  >
+                    <span aria-hidden="true">{option.icon}</span>
+                    <small>{option.name}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             className="composer-publish"
             type="button"
             onClick={publish}
             disabled={busy}
+            aria-label="Send Thought"
           >
-            {busy ? 'Checking…' : 'Drop'}
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 12.5 20 4l-6.5 16-2.3-6.1L4 12.5Z" />
+              <path d="m11.2 13.9 4.1-4.2" />
+            </svg>
+            {busy && <span className="sr-only">Checking location…</span>}
           </button>
         </header>
 
@@ -187,23 +252,44 @@ export default function DropComposer({
             className="composer-card-input"
             value={body}
             onChange={(event) => setBody(event.target.value)}
-            placeholder="What did you notice?"
+            placeholder="You’re marking your spot…"
             aria-label="Thought text"
             autoFocus
           />
-          <span className={words > 200 ? 'composer-word-count danger' : 'composer-word-count'}>
-            {words}/200
+          <span className={words > THOUGHT_WORD_LIMIT ? 'composer-word-count danger' : 'composer-word-count'}>
+            {words}/{THOUGHT_WORD_LIMIT}
           </span>
         </div>
 
-        <input
-          className="composer-music-input"
-          value={musicUrl}
-          onChange={(event) => setMusicUrl(event.target.value)}
-          placeholder="🎵 Add music link (optional)"
-          aria-label="Music link"
-          inputMode="url"
-        />
+        <label className="composer-bgm-row">
+          <span aria-hidden="true">🎵</span>
+          <input
+            value={musicUrl}
+            onChange={(event) => {
+              setMusicUrl(event.target.value)
+              if (musicFeedback) {
+                setMusicFeedback(normalizeMusicLink(event.target.value).error)
+              }
+            }}
+            onBlur={() => setMusicFeedback(normalizeMusicLink(musicUrl).error)}
+            placeholder="Pick BGM"
+            aria-label="BGM link"
+            aria-describedby="composer-bgm-help"
+            inputMode="url"
+            maxLength={MUSIC_LINK_MAX_LENGTH}
+          />
+        </label>
+        {(musicFeedback || !musicUrl.trim()) && (
+          <span
+            id="composer-bgm-help"
+            className={musicFeedback
+              ? 'composer-bgm-feedback is-invalid'
+              : 'composer-bgm-feedback'}
+            role="status"
+          >
+            {musicFeedback ? BGM_INVALID_COPY : BGM_SOURCE_HINT}
+          </span>
+        )}
 
         {error && (
           <div className="composer-error" role="alert">
@@ -213,12 +299,7 @@ export default function DropComposer({
         )}
 
         <time className="composer-card-time">
-          {new Date().toLocaleString([], {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+          {formatThoughtTimestamp(new Date())}
         </time>
 
         <div className="composer-tool-area">

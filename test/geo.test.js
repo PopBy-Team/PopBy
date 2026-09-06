@@ -2,6 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  CURRENT_LOCATION_FOCUS_RADIUS_KM,
+  EXPANDED_AREA_FOCUS_RADIUS_KM,
+  MAP_MAX_ZOOM,
+  fitFeatureToMiddleHalf,
   fitMapToRadius,
   getMarkerPresentation,
   getMarkerSize,
@@ -9,12 +13,13 @@ import {
   getViewportWidthMeters,
 } from '../src/lib/geo.js'
 import * as geo from '../src/lib/geo.js'
+import { FITZROY_FEATURE } from '../src/data/suburbs.js'
 
 test('getViewportMode switches at the meter-based range boundaries', () => {
   assert.equal(getViewportMode(1501), 'far')
   assert.equal(getViewportMode(1500), 'medium')
-  assert.equal(getViewportMode(700), 'medium')
-  assert.equal(getViewportMode(699), 'near')
+  assert.equal(getViewportMode(1350), 'medium')
+  assert.equal(getViewportMode(1349), 'near')
 })
 
 test('the initial 3D view is close enough to reveal Standard buildings', () => {
@@ -78,6 +83,9 @@ test('fitMapToRadius fits a map around the requested coordinate', () => {
   const coordinate = [144.9788, -37.8005]
   fitMapToRadius(map, coordinate)
 
+  assert.equal(CURRENT_LOCATION_FOCUS_RADIUS_KM, 0.2)
+  assert.equal(EXPANDED_AREA_FOCUS_RADIUS_KM, 0.4)
+
   assert.equal(typeof geo.MAP_3D_VIEW, 'object')
   assert.equal(receivedBounds.length, 2)
   assert.ok(receivedBounds[0][0] < coordinate[0])
@@ -89,5 +97,28 @@ test('fitMapToRadius fits a map around the requested coordinate', () => {
     duration: 900,
     pitch: geo.MAP_3D_VIEW.pitch,
     bearing: geo.MAP_3D_VIEW.bearing,
+    maxZoom: MAP_MAX_ZOOM,
   })
+})
+
+test('initial Fitzroy fit lets the pitched suburb occupy about half of a portrait viewport', () => {
+  const calls = []
+  let finalZoom
+  fitFeatureToMiddleHalf({
+    fitBounds: (...args) => calls.push(args),
+    getZoom: () => 14.2,
+    setZoom: (zoom) => { finalZoom = zoom },
+  }, FITZROY_FEATURE, {
+    width: 390,
+    height: 844,
+    topRail: 54,
+  })
+
+  assert.equal(MAP_MAX_ZOOM, 20)
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0][1].padding.top, 55)
+  assert.equal(calls[0][1].padding.bottom, 55)
+  assert.equal(calls[0][1].padding.left, 18)
+  assert.equal(calls[0][1].duration, 0)
+  assert.equal(finalZoom, 14.95)
 })

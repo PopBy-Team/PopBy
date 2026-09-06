@@ -6,6 +6,12 @@ import {
 } from '../data/demo.js'
 import { distanceMeters } from './geo.js'
 import { isValidCardAppearance, normalizeCardAppearance } from './cardAppearance.js'
+import {
+  MUSIC_LINK_MAX_LENGTH,
+  THOUGHT_WORD_LIMIT,
+  countWords,
+} from './contentRules.js'
+import { normalizeMusicLink } from './musicLink.js'
 
 const CARD_FIELDS = [
   'id',
@@ -170,16 +176,19 @@ export function createDemoApi({ storage } = {}) {
         background_type: input.p_background_type ?? 'solid',
         background_color: input.p_background_color ?? 'white',
         font_family: input.p_font_family ?? 'caveat',
-        font_size: input.p_font_size ?? 14,
+        font_size: input.p_font_size ?? 12,
       }
       if (!isValidCardAppearance(appearanceInput)) throw new Error('Invalid card appearance')
       const appearance = normalizeCardAppearance(appearanceInput)
 
-      const words = String(input.p_body || '').trim().split(/\s+/).filter(Boolean)
-      if (words.length > 200) throw new Error('200-word maximum')
-      if (input.p_music_url && !/^https?:\/\//i.test(input.p_music_url)) {
-        throw new Error('Music URL must use http or https')
+      if (countWords(input.p_body) > THOUGHT_WORD_LIMIT) {
+        throw new Error('150-word maximum')
       }
+      if (String(input.p_music_url || '').trim().length > MUSIC_LINK_MAX_LENGTH) {
+        throw new Error('Music link is too long')
+      }
+      const music = normalizeMusicLink(input.p_music_url)
+      if (music.error) throw new Error('Invalid music link')
 
       const user = [Number(input.p_user_lng), Number(input.p_user_lat)]
       const drop = [Number(input.p_drop_lng), Number(input.p_drop_lat)]
@@ -199,13 +208,22 @@ export function createDemoApi({ storage } = {}) {
       )
       if (deviceRecent.length >= 5) throw new Error('Hourly drop limit reached')
 
-      let location = allLocations()
-        .map((item) => ({
-          item,
-          distance: distanceMeters(safe, [item.lng, item.lat]),
-        }))
-        .filter(({ distance }) => distance <= 20)
-        .sort((a, b) => a.distance - b.distance)[0]?.item
+      let location
+      if (input.p_target_location_id) {
+        location = allLocations().find((item) =>
+          item.id === input.p_target_location_id &&
+          distanceMeters(safe, [item.lng, item.lat]) <= 20
+        )
+        if (!location) throw new Error('Selected location is no longer available')
+      } else {
+        location = allLocations()
+          .map((item) => ({
+            item,
+            distance: distanceMeters(safe, [item.lng, item.lat]),
+          }))
+          .filter(({ distance }) => distance <= 20)
+          .sort((a, b) => a.distance - b.distance)[0]?.item
+      }
 
       if (!location) {
         location = {
@@ -236,7 +254,7 @@ export function createDemoApi({ storage } = {}) {
         font_family: appearance.fontFamily,
         font_size: appearance.fontSize,
         image_url: input.p_image_url || null,
-        music_url: String(input.p_music_url || '').trim() || null,
+        music_url: music.url,
         hidden: false,
         created_at: new Date().toISOString(),
       }

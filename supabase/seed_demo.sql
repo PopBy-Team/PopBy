@@ -2,12 +2,12 @@
 
 with demo_locations(id, lng, lat) as (
   values
-    ('00000000-0000-4000-8000-000000000101'::uuid, 144.97886, -37.80046),
-    ('00000000-0000-4000-8000-000000000102'::uuid, 144.97945, -37.80020),
-    ('00000000-0000-4000-8000-000000000103'::uuid, 144.97695, -37.80135),
-    ('00000000-0000-4000-8000-000000000104'::uuid, 144.98190, -37.80205),
-    ('00000000-0000-4000-8000-000000000105'::uuid, 144.97565, -37.79865),
-    ('00000000-0000-4000-8000-000000000106'::uuid, 144.98265, -37.79775)
+    ('00000000-0000-4000-8000-000000000101'::uuid, 144.97833614338754, -37.80058074253888),
+    ('00000000-0000-4000-8000-000000000102'::uuid, 144.9787535528851, -37.80084453896316),
+    ('00000000-0000-4000-8000-000000000103'::uuid, 144.97928785189276, -37.80050393011469),
+    ('00000000-0000-4000-8000-000000000104'::uuid, 144.98189911980012, -37.80205452344002),
+    ('00000000-0000-4000-8000-000000000105'::uuid, 144.97564295474245, -37.79868505587912),
+    ('00000000-0000-4000-8000-000000000106'::uuid, 144.9826194883899, -37.797924668467786)
 )
 insert into public.locations(id, suburb, lng, lat, geom)
 select
@@ -24,31 +24,41 @@ on conflict (id) do update set
   geom = excluded.geom;
 
 insert into public.thoughts(
-  id, location_id, device_id, category, body, background_type, music_url, created_at
+  id, location_id, device_id, category, body,
+  background_type, background_color, font_family, font_size,
+  image_url, music_url, created_at
 )
 values
-  ('00000000-0000-4000-8000-000000001001', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000002001', 'Nature', 'The plane trees are turning the footpath into moving shade.', 'lined', null, '2026-09-05 08:16:00+00'),
-  ('00000000-0000-4000-8000-000000001002', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000002002', 'Nature', 'Tiny green shoots found the crack beside the bluestone.', 'grid', null, '2026-09-05 08:15:00+00'),
-  ('00000000-0000-4000-8000-000000001003', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000002003', 'Moment', 'A cyclist rang once and the whole corner seemed to wake up.', 'solid', null, '2026-09-05 08:14:00+00'),
-  ('00000000-0000-4000-8000-000000001004', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000002004', 'Sound', 'Coffee cups, tram bells, and one very patient magpie.', 'lined', 'https://open.spotify.com/', '2026-09-05 08:13:00+00'),
-  ('00000000-0000-4000-8000-000000001005', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000002005', 'Place', 'This corner feels like a pause between errands.', 'solid', null, '2026-09-05 08:12:00+00'),
-  ('00000000-0000-4000-8000-000000001006', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000002006', 'Art', 'A blue face appeared overnight between two old posters.', 'grid', null, '2026-09-05 08:11:00+00'),
-  ('00000000-0000-4000-8000-000000001007', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000002007', 'Art', 'The paint drips are better than the finished mural.', 'solid', null, '2026-09-05 08:10:00+00'),
-  ('00000000-0000-4000-8000-000000001008', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000002008', 'Place', 'Look up: the balcony brackets are little iron flowers.', 'lined', null, '2026-09-05 08:09:00+00'),
-  ('00000000-0000-4000-8000-000000001009', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000002001', 'Moment', 'Someone held the door for three strangers in a row.', 'solid', null, '2026-09-05 08:08:00+00'),
-  ('00000000-0000-4000-8000-000000001010', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002002', 'Eat', 'Warm cardamom drifted all the way to the crossing.', 'lined', null, '2026-09-05 08:07:00+00'),
-  ('00000000-0000-4000-8000-000000001011', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002003', 'Eat', 'The last table outside catches the soft afternoon sun.', 'solid', null, '2026-09-05 08:06:00+00'),
-  ('00000000-0000-4000-8000-000000001012', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002004', 'Sound', 'A kitchen radio is playing just above the street noise.', 'grid', 'https://music.apple.com/', '2026-09-05 08:05:00+00'),
-  ('00000000-0000-4000-8000-000000001013', '00000000-0000-4000-8000-000000000104', '00000000-0000-4000-8000-000000002005', 'Animals', 'A terrier is inspecting every doorway like a tiny mayor.', 'solid', null, '2026-09-05 08:04:00+00'),
-  ('00000000-0000-4000-8000-000000001014', '00000000-0000-4000-8000-000000000104', '00000000-0000-4000-8000-000000002006', 'Nature', 'Rain is holding in the leaves even though the sky cleared.', 'lined', null, '2026-09-05 08:03:00+00'),
-  ('00000000-0000-4000-8000-000000001015', '00000000-0000-4000-8000-000000000105', '00000000-0000-4000-8000-000000002007', 'Place', 'The old brick changes colour whenever a cloud passes.', 'grid', null, '2026-09-05 08:02:00+00'),
-  ('00000000-0000-4000-8000-000000001016', '00000000-0000-4000-8000-000000000106', '00000000-0000-4000-8000-000000002008', 'Sound', 'There is a quiet pocket here between two busy streets.', 'solid', null, '2026-09-05 08:01:00+00')
+  ('00000000-0000-4000-8000-000000001001', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000002001', 'Nature', 'The plane trees are turning the footpath into moving shade.', 'lined', 'white', 'caveat', 16, null, null, '2026-09-05 08:20:00+00'),
+  ('00000000-0000-4000-8000-000000001002', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000002002', 'Nature', 'Tiny green shoots found the crack beside the bluestone.', 'solid', 'rose', 'patrick-hand', 14, null, 'https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp', '2026-09-05 08:19:00+00'),
+  ('00000000-0000-4000-8000-000000001003', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000002003', 'Art', 'A blue face appeared overnight between two old posters.', 'grid', 'white', 'homemade-apple', 12, null, null, '2026-09-05 08:18:00+00'),
+  ('00000000-0000-4000-8000-000000001004', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000002004', 'Art', 'The paint drips are better than the finished mural.', 'solid', 'blue', 'island-moments', 16, null, 'https://music.apple.com/au/song/dreams/1440768234', '2026-09-05 08:17:00+00'),
+  ('00000000-0000-4000-8000-000000001005', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000002005', 'Art', 'Someone added one gold line and stopped at exactly the right moment.', 'dots', 'white', 'caveat', 14, null, null, '2026-09-05 08:16:00+00'),
+  ('00000000-0000-4000-8000-000000001006', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000002006', 'Place', 'Look up: the balcony brackets are little iron flowers.', 'lined', 'white', 'patrick-hand', 12, null, null, '2026-09-05 08:15:00+00'),
+  ('00000000-0000-4000-8000-000000001007', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000002007', 'Moment', 'Late sun caught the windows and made the whole lane blink.', 'photo', 'white', 'homemade-apple', 16, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80', null, '2026-09-05 08:14:00+00'),
+  ('00000000-0000-4000-8000-000000001008', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002008', 'Eat', 'Warm cardamom drifted all the way to the crossing.', 'solid', 'clay', 'island-moments', 14, null, null, '2026-09-05 08:13:00+00'),
+  ('00000000-0000-4000-8000-000000001009', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002001', 'Eat', 'The last table outside catches the soft afternoon sun.', 'lined', 'white', 'caveat', 12, null, null, '2026-09-05 08:12:00+00'),
+  ('00000000-0000-4000-8000-000000001010', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002002', 'Eat', 'A tiny window is handing out something crisp and excellent.', 'grid', 'white', 'patrick-hand', 16, null, null, '2026-09-05 08:11:00+00'),
+  ('00000000-0000-4000-8000-000000001011', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002003', 'Eat', null, 'dots', 'white', 'homemade-apple', 14, null, 'https://music.youtube.com/watch?v=dQw4w9WgXcQ', '2026-09-05 08:10:00+00'),
+  ('00000000-0000-4000-8000-000000001012', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002004', 'Nature', 'Rain is holding in the leaves even though the sky cleared.', 'solid', 'rose', 'island-moments', 12, null, null, '2026-09-05 08:09:00+00'),
+  ('00000000-0000-4000-8000-000000001013', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002005', 'Animals', 'A terrier is inspecting every doorway like a tiny mayor.', 'photo', 'white', 'caveat', 16, 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80', null, '2026-09-05 08:08:00+00'),
+  ('00000000-0000-4000-8000-000000001014', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002006', 'Sound', 'Coffee cups, tram bells, and one very patient magpie.', 'lined', 'white', 'patrick-hand', 14, null, 'https://open.spotify.com/track/0ofHAoxe9vBkTCp2UQIavz', '2026-09-05 08:07:00+00'),
+  ('00000000-0000-4000-8000-000000001015', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002007', 'Place', 'This corner feels like a pause between errands.', 'grid', 'white', 'homemade-apple', 12, null, null, '2026-09-05 08:06:00+00'),
+  ('00000000-0000-4000-8000-000000001016', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002008', 'Moment', 'Someone held the door for three strangers in a row.', 'solid', 'sage', 'island-moments', 16, null, 'https://music.apple.com/au/album/rumours/1440857781?i=1440857798', '2026-09-05 08:05:00+00'),
+  ('00000000-0000-4000-8000-000000001017', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000002001', 'Eat', 'Keep walking until the toasted sesame smell wins.', 'solid', 'rose', 'caveat', 14, null, null, '2026-09-05 08:04:00+00'),
+  ('00000000-0000-4000-8000-000000001018', '00000000-0000-4000-8000-000000000104', '00000000-0000-4000-8000-000000002002', 'Animals', 'A magpie is supervising the bike rack.', 'solid', 'clay', 'patrick-hand', 12, null, null, '2026-09-05 08:03:00+00'),
+  ('00000000-0000-4000-8000-000000001019', '00000000-0000-4000-8000-000000000105', '00000000-0000-4000-8000-000000002003', 'Place', 'The old brick changes colour whenever a cloud passes.', 'grid', 'white', 'homemade-apple', 16, null, null, '2026-09-05 08:02:00+00'),
+  ('00000000-0000-4000-8000-000000001020', '00000000-0000-4000-8000-000000000106', '00000000-0000-4000-8000-000000002004', 'Sound', 'There is a quiet pocket here between two busy streets.', 'lined', 'white', 'island-moments', 14, null, null, '2026-09-05 08:01:00+00')
 on conflict (id) do update set
   location_id = excluded.location_id,
   device_id = excluded.device_id,
   category = excluded.category,
   body = excluded.body,
   background_type = excluded.background_type,
+  background_color = excluded.background_color,
+  font_family = excluded.font_family,
+  font_size = excluded.font_size,
+  image_url = excluded.image_url,
   music_url = excluded.music_url,
   hidden = false,
   created_at = excluded.created_at;

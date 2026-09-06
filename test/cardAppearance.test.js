@@ -9,12 +9,12 @@ import {
   normalizeCardAppearance,
 } from '../src/lib/cardAppearance.js'
 
-test('card appearance defaults to white Caveat at the largest mobile size', () => {
+test('card appearance defaults to white Caveat at 12pt', () => {
   assert.deepEqual(normalizeCardAppearance({}), {
     backgroundType: 'solid',
     backgroundColor: 'white',
     fontFamily: 'caveat',
-    fontSize: 14,
+    fontSize: 12,
   })
 })
 
@@ -24,9 +24,9 @@ test('card appearance produces shared editor and reader classes', () => {
       background_type: 'dots',
       background_color: 'sage',
       font_family: 'homemade-apple',
-      font_size: 10,
+      font_size: 16,
     }),
-    'bg-dots color-sage font-homemade-apple size-10',
+    'bg-dots color-sage font-homemade-apple size-16',
   )
 })
 
@@ -39,7 +39,7 @@ test('appearance menus expose the exact paper, Morandi, font, and size choices',
     FONT_OPTIONS.map(({ value }) => value),
     ['caveat', 'patrick-hand', 'homemade-apple', 'island-moments'],
   )
-  assert.deepEqual(FONT_SIZE_OPTIONS.map(({ value }) => value), [14, 12, 10])
+  assert.deepEqual(FONT_SIZE_OPTIONS.map(({ value }) => value), [16, 14, 12])
 })
 
 test('invalid persisted appearance values fall back to safe mobile defaults', () => {
@@ -52,6 +52,11 @@ test('invalid persisted appearance values fall back to safe mobile defaults', ()
     backgroundType: 'solid',
     backgroundColor: 'white',
     fontFamily: 'caveat',
-    fontSize: 14,
+    fontSize: 12,
   })
+})
+
+test('persisted 10pt cards normalize to the new readable default', () => {
+  assert.equal(normalizeCardAppearance({ font_size: 10 }).fontSize, 12)
+  assert.equal(normalizeCardAppearance({ font_size: 16 }).fontSize, 16)
 })

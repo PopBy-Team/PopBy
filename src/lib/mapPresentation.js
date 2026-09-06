@@ -67,10 +67,10 @@ export function createFarThoughtLayers() {
       source: 'thought-dots',
       paint: {
         'circle-radius': 4.5,
-        'circle-color': '#fff0a8',
+        'circle-color': '#f4c66b',
         'circle-opacity': 0.96,
         'circle-blur': 0.28,
-        'circle-stroke-color': 'rgba(255, 238, 151, .42)',
+        'circle-stroke-color': 'rgba(238, 171, 64, .46)',
         'circle-stroke-width': 4,
         'circle-emissive-strength': 1,
       },
@@ -86,6 +86,15 @@ export function createFarThoughtLayers() {
       },
     },
   ]
+}
+
+export function getThoughtMarkerState(location = {}) {
+  const isUnlocked = Boolean(location.isUnlocked)
+  return {
+    isMine: Boolean(location.isMine),
+    isClose: Boolean(location.isClose) && !isUnlocked,
+    isUnlocked,
+  }
 }
 
 export function getMapLabelPolicy(mode) {
@@ -141,4 +150,35 @@ export function syncThoughtMarkerCoordinate(marker, location) {
 export function refreshLocationPresentation(map, locationsGeoJSON, syncMarkers) {
   map.getSource?.('thought-dots')?.setData(locationsGeoJSON)
   syncMarkers?.(map)
+}
+
+export function createLocationPresentationSync(map, syncMarkers) {
+  let latestGeoJSON = null
+
+  const applyLatest = () => {
+    if (!latestGeoJSON) return
+    map.getSource?.('thought-dots')?.setData(latestGeoJSON)
+    syncMarkers?.(map, latestGeoJSON)
+    map.triggerRepaint?.()
+  }
+
+  map.on?.('styledata', applyLatest)
+
+  return {
+    update(geoJSON) {
+      latestGeoJSON = geoJSON
+      applyLatest()
+    },
+    destroy() {
+      map.off?.('styledata', applyLatest)
+      latestGeoJSON = null
+    },
+  }
+}
+
+export function syncCurrentLocationMarker(marker, coordinate) {
+  if (!marker || !coordinate) return null
+  const next = [Number(coordinate[0]), Number(coordinate[1])]
+  marker.setLngLat(next)
+  return next
 }

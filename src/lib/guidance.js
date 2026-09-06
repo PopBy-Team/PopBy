@@ -1,6 +1,6 @@
 import { CATEGORIES } from '../data/categories.js'
 
-const GUIDE_VERSION = 'v4'
+const GUIDE_VERSION = 'v5'
 
 const onboardingKey = `popby_onboarding_${GUIDE_VERSION}`
 const firstPublishKey = 'popby_first_thought_published_v1'
@@ -14,17 +14,18 @@ export const ONBOARDING_STEPS = [
     eyebrow: 'Welcome to PopBy',
     title: 'Notice what’s already around you.',
     body:
-      'No sign-up, profile or followers. PopBy remembers your Thoughts and unlocks on this browser with an anonymous device ID.',
-    note: 'Clearing site data resets these MVP local memories.',
+      'Explore Thoughts around you. Create one right where you are, whenever you feel like it.',
+    note:
+      'No sign-up, profile or followers. This browser remembers your Thoughts and unlocks anonymously; clearing site data resets them.',
     visual: '✦',
   },
   {
     eyebrow: 'Explore',
-    title: 'Fitzroy is open.',
+    title: 'Explore Thoughts',
     body:
-      'Far away, Thoughts glow like pale-yellow fireflies. Closer in, category icons appear, and bigger icons mean more Thoughts.',
+      'Zoom in, move within 50m, then tap a marker to explore the Thoughts left there. Zoomed out, markers become warm firefly dots; closer in, their category icons and sizes appear.',
     note:
-      'Grey suburbs await unlock. Fitzroy needs 15 active locations, 50 Thoughts, 30 contributors and 50 successful unlocks.',
+      'Bright areas are open to explore. Grey areas are waiting to be unlocked.',
     visual: '↔',
     legend: CATEGORIES.map(({ name, icon }) => ({ name, icon })),
   },
@@ -37,12 +38,12 @@ export const ONBOARDING_STEPS = [
     visual: '◎',
   },
   {
-    eyebrow: 'Drop',
-    title: 'Leave something behind where you noticed it.',
+    eyebrow: 'Create',
+    title: 'Create a Thought',
     body:
-      'Long-press within 50m, then choose a category, card background and optional content.',
+      'Long-press a nearby public path or an existing Thought location inside any open area. Choose a category, then create your card.',
     note:
-      'Limits: 5 Thoughts per device per hour, and 3 per location per hour.',
+      'Up to 150 words. Optional BGM accepts Spotify, Apple Music and YouTube Music track links only. Limits: 5 per hour, 3 per location.',
     visual: '＋',
   },
   {
@@ -115,7 +116,7 @@ export function getMapStatus({ loading, mineMode, locationCount }) {
   if (loading) {
     return {
       title: 'Finding nearby Thoughts…',
-      body: 'Checking Fitzroy’s shared places.',
+      body: 'Checking the open area’s shared places.',
     }
   }
 
@@ -169,6 +170,41 @@ export function friendlyPublishError(message = '') {
     return {
       title: '200-word maximum',
       body: 'Shorten this Thought before dropping it.',
+    }
+  }
+
+  if (message.includes('150-word maximum')) {
+    return {
+      title: '150-word maximum',
+      body: 'Shorten this Thought before sending it.',
+    }
+  }
+
+  if (message.includes('Music link is too long')) {
+    return {
+      title: 'BGM link is too long',
+      body: 'Keep the link under 300 characters, or write the song name in your Thought instead.',
+    }
+  }
+
+  if (message.includes('Music URL must use http or https')) {
+    return {
+      title: 'That BGM link does not work',
+      body: 'Use a normal web link, or write the song name in your Thought instead.',
+    }
+  }
+
+  if (message.includes('Invalid music link')) {
+    return {
+      title: 'That BGM link does not work',
+      body: 'Use a Spotify, Apple Music or YouTube Music track link, or enter the track name in your Thought.',
+    }
+  }
+
+  if (message.includes('Selected location is no longer available')) {
+    return {
+      title: 'Choose this spot again',
+      body: 'This shared point moved or is no longer available. Return to the map and hold it again.',
     }
   }
 

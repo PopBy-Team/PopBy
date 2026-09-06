@@ -66,6 +66,20 @@ schema. Run `supabase/upgrade_mobile_thought_cards.sql` once instead. It adds
 the mobile card appearance fields and the owner-checked delete RPC without
 removing existing Thoughts.
 
+After that, run `supabase/upgrade_mobile_map_card_refinement.sql` once. It moves
+legacy 10pt cards to 12pt, installs the 150-word/300-character BGM publishing
+contract, enables validated publishing to an explicitly selected shared node,
+and moves the six known demo nodes to verified Mapbox sidewalk anchors.
+
+Finally, run `supabase/upgrade_bgm_allowlist.sql` once. It keeps existing data,
+but narrows new BGM links to individual tracks from Spotify, Apple Music or
+YouTube Music. Projects created from the current `schema.sql` already include
+this rule; running the upgrade again is safe.
+
+Run `supabase/seed_demo.sql` again if you want the refreshed demo story. It
+replaces only the fixed demo records and gives the nearby 50m cluster 2, 5 and
+10 Thoughts, so all three marker sizes are visible together.
+
 ## 4. Run
 
 ```bash
@@ -84,13 +98,27 @@ presentable even when you are physically somewhere else.
 
 ## 5. Main interaction
 
-- Zoom out: Thoughts become pale-yellow firefly dots and detail labels hide.
+- Zoom out: Thoughts become warm amber firefly dots and detail labels hide.
 - Zoom in: the exact category markers appear: 🐾 🌳 🍴 🎨 📍 🎵 ✨.
-- Long press within 50m of current/demo GPS: choose a category from the radial
-  fan, then edit the centered Thought card.
+- Long press open ground or an existing Thought point within 50m of current/demo
+  GPS: choose a category from the adaptive radial fan, then edit the centered
+  Thought card. Holding an existing point aggregates there only after the
+  backend verifies its safe anchor is within 20m.
 - Click location > if within 50m: unlock.
 - Previously unlocked locations can be reopened.
 - Mine filters to your own thoughts and allows remote viewing.
+- The initial map frames Fitzroy in the middle half of the phone, stops at zoom
+  20, and shows the current/demo position as a blue live light. The recenter
+  control currently frames a 200m radius; the nearby code comment marks the
+  single constant to restore to 400m when another active suburb opens.
+- The transparent lower label follows the map centre, showing
+  `MELBOURNE · <SUBURB>` in known areas and `MELBOURNE` elsewhere.
+- Thought cards use 12/14/16pt choices, a full timestamp, swipe dots and an Add
+  action for adding another Thought at the currently explored point.
+- Composer text is limited to 150 words. Pick BGM accepts an individual Spotify,
+  Apple Music or YouTube Music track link up to 300 characters. Audio stays on
+  the provider: PopBy stores only the normalized URL and opens it after a user
+  taps `Open BGM`; it does not download, host, autoplay or embed the track.
 - Drop publishing performs a Mapbox Streets privacy check:
   - detect mapped building
   - find nearby public-ish road/path
@@ -134,12 +162,16 @@ The updated starter includes a complete first-run guidance system:
 
 - 6-step onboarding on first open
 - contextual tips for location, unlock distance, locked suburbs, drop distance and Mine
-- first-publish Drop rules (50m, 5/hour/device, 3/hour/location), followed by
+- first-publish Nearby rules (50m, 5/hour/device, 3/hour/location), followed by
   contextual rule messages only when an action exceeds a limit
 - live-camera-only photo backgrounds plus paper, Morandi, font and size tools
 - centered swipe card reader with owner Delete / public Report actions
 - simple Fitzroy progress bar + Next: Carlton, hidden after category icons appear
 - a complete seven-icon legend in the Explore instruction
+- Create guidance explains that users can create a Thought right where they are,
+  whenever they feel like it; existing Thought points can also be held to add to
+  that shared place
+- the guide names the three supported BGM sources before the composer is opened
 - `?` button to replay the guide
 
 See `GUIDANCE.md` for the complete trigger/copy/presentation matrix.

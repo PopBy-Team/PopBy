@@ -30,7 +30,7 @@ create table if not exists public.thoughts (
   background_type text not null default 'solid',
   background_color text not null default 'white',
   font_family text not null default 'caveat',
-  font_size smallint not null default 14,
+  font_size smallint not null default 12,
   image_url text,
   music_url text check (
     music_url is null or music_url ~* '^https?://'
@@ -42,7 +42,14 @@ create table if not exists public.thoughts (
 alter table public.thoughts
   add column if not exists background_color text not null default 'white',
   add column if not exists font_family text not null default 'caveat',
-  add column if not exists font_size smallint not null default 14;
+  add column if not exists font_size smallint not null default 12;
+
+update public.thoughts
+set font_size = 12
+where font_size = 10;
+
+alter table public.thoughts
+  alter column font_size set default 12;
 
 alter table public.thoughts
   drop constraint if exists thoughts_background_type_check,
@@ -60,7 +67,7 @@ alter table public.thoughts
   add constraint thoughts_font_family_check check (
     font_family in ('caveat', 'patrick-hand', 'homemade-apple', 'island-moments')
   ),
-  add constraint thoughts_font_size_check check (font_size in (10, 12, 14));
+  add constraint thoughts_font_size_check check (font_size in (12, 14, 16));
 
 create index if not exists thoughts_location_idx
   on public.thoughts(location_id, created_at desc);
@@ -349,6 +356,21 @@ grant execute on function public.record_unlock(
 -- only persisted coordinate is the privacy-adjusted Safe Anchor (or a nearby
 -- existing node selected by the 20m merge).
 
+create or replace function public.is_supported_music_url(p_url text)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select
+    p_url is null
+    or btrim(p_url) = ''
+    or btrim(p_url) ~* '^https://open[.]spotify[.]com/track/[a-z0-9]+/?$'
+    or btrim(p_url) ~* '^https://music[.]apple[.]com/[a-z]{2}/song/[^/?#[:space:]]+/[0-9]+/?$'
+    or btrim(p_url) ~* '^https://music[.]apple[.]com/[a-z]{2}/album/[^/?#[:space:]]+/[0-9]+[?]i=[0-9]+$'
+    or btrim(p_url) ~* '^https://music[.]youtube[.]com/watch[?]v=[a-z0-9_-]+$';
+$$;
+
 drop function if exists public.publish_thought(
   uuid, double precision, double precision, double precision, double precision,
   double precision, double precision, text, text, text, text, text, text
@@ -358,6 +380,12 @@ drop function if exists public.publish_thought(
   uuid, double precision, double precision, double precision, double precision,
   double precision, double precision, text, text, text, text, text, text,
   smallint, text, text
+);
+
+drop function if exists public.publish_thought(
+  uuid, double precision, double precision, double precision, double precision,
+  double precision, double precision, text, text, text, text, text, text,
+  smallint, text, text, uuid
 );
 
 create function public.publish_thought(
@@ -374,9 +402,10 @@ create function public.publish_thought(
   p_background_type text default 'solid',
   p_background_color text default 'white',
   p_font_family text default 'caveat',
-  p_font_size smallint default 14,
+  p_font_size smallint default 12,
   p_image_url text default null,
-  p_music_url text default null
+  p_music_url text default null,
+  p_target_location_id uuid default null
 )
 returns uuid
 language plpgsql
@@ -416,7 +445,7 @@ begin
     raise exception 'Invalid font';
   end if;
 
-  if p_font_size is null or p_font_size not in (10, 12, 14) then
+  if p_font_size is null or p_font_size not in (12, 14, 16) then
     raise exception 'Invalid font size';
   end if;
 
@@ -425,13 +454,16 @@ begin
     else cardinality(regexp_split_to_array(btrim(p_body), '[[:space:]]+'))
   end;
 
-  if v_word_count > 200 then
-    raise exception '200-word maximum';
+  if v_word_count > 150 then
+    raise exception '150-word maximum';
   end if;
 
-  if nullif(btrim(p_music_url), '') is not null
-    and p_music_url !~* '^https?://' then
-    raise exception 'Music URL must use http or https';
+  if char_length(coalesce(p_music_url, '')) > 300 then
+    raise exception 'Music link is too long';
+  end if;
+
+  if not public.is_supported_music_url(p_music_url) then
+    raise exception 'Invalid music link';
   end if;
 
   v_user := extensions.st_setsrid(
@@ -464,12 +496,25 @@ begin
     raise exception 'Hourly drop limit reached';
   end if;
 
-  select l.id
-    into v_location_id
-  from public.locations l
-  where extensions.st_dwithin(l.geom, v_safe, 20)
-  order by extensions.st_distance(l.geom, v_safe)
-  limit 1;
+  if p_target_location_id is not null then
+    select l.id
+      into v_location_id
+    from public.locations l
+    where l.id = p_target_location_id
+      and l.suburb = 'Fitzroy'
+      and extensions.st_dwithin(l.geom, v_safe, 20);
+
+    if v_location_id is null then
+      raise exception 'Selected location is no longer available';
+    end if;
+  else
+    select l.id
+      into v_location_id
+    from public.locations l
+    where extensions.st_dwithin(l.geom, v_safe, 20)
+    order by extensions.st_distance(l.geom, v_safe)
+    limit 1;
+  end if;
 
   if v_location_id is null then
     insert into public.locations (suburb, lat, lng, geom)
@@ -520,12 +565,12 @@ $$;
 revoke all on function public.publish_thought(
   uuid, double precision, double precision, double precision, double precision,
   double precision, double precision, text, text, text, text, text, text,
-  smallint, text, text
+  smallint, text, text, uuid
 ) from public;
 grant execute on function public.publish_thought(
   uuid, double precision, double precision, double precision, double precision,
   double precision, double precision, text, text, text, text, text, text,
-  smallint, text, text
+  smallint, text, text, uuid
 ) to anon;
 
 -- REPORT -------------------------------------------------------------------

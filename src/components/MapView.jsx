@@ -1,26 +1,36 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { CATEGORY_ICONS } from '../data/categories'
 import {
+  FITZROY_FEATURE,
+  getAreaLabel,
   makeFitzroyMaskGeoJSON,
   makeSuburbsGeoJSON,
 } from '../data/suburbs'
 import {
+  fitFeatureToMiddleHalf,
   fitMapToRadius,
+  MAP_MAX_ZOOM,
   MAP_3D_VIEW,
   getMarkerPresentation,
   getViewportMode,
   getViewportWidthMeters,
 } from '../lib/geo'
-import { attachMapLongPress, disposeMap } from '../lib/mapLifecycle'
+import {
+  attachElementLongPress,
+  attachMapLongPress,
+  disposeMap,
+} from '../lib/mapLifecycle'
 import {
   applyMapLabelPolicy,
+  createLocationPresentationSync,
   createFarThoughtLayers,
   createPoiNameLayer,
   createThoughtMarkerOptions,
-  refreshLocationPresentation,
+  getThoughtMarkerState,
   STANDARD_BASEMAP_CONFIG,
+  syncCurrentLocationMarker,
   syncThoughtMarkerCoordinate,
 } from '../lib/mapPresentation'
 import DropCategoryFan from './DropCategoryFan'
@@ -49,28 +59,42 @@ export default function MapView({
   progress,
   onUserLocation,
   onLocationClick,
+  onLocationLongPress,
   onLongPress,
   onLockedSuburbClick,
   onViewportModeChange,
+  onAreaLabelChange,
   userLocation,
   dropCoordinate,
   onDropCategorySelect,
+  onDropAnchorResolve,
+  onDropResolveError,
   onDropCancel,
 }) {
+  const [bearing, setBearing] = useState(MAP_3D_VIEW.bearing)
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const markersRef = useRef(new Map())
+  const markerHoldCleanupsRef = useRef(new Map())
+  const currentLocationMarkerRef = useRef(null)
+  const syncCurrentLocationRef = useRef(null)
+  const presentationSyncRef = useRef(null)
   const syncMarkersRef = useRef(null)
   const locationsRef = useRef(locations)
   const clickRef = useRef(onLocationClick)
+  const locationLongPressRef = useRef(onLocationLongPress)
   const onUserLocationRef = useRef(onUserLocation)
   const currentLocationRef = useRef(userLocation)
   const geolocateRef = useRef(null)
   const longPressRef = useRef(onLongPress)
   const lockedClickRef = useRef(onLockedSuburbClick)
   const viewportModeChangeRef = useRef(onViewportModeChange)
+  const areaLabelChangeRef = useRef(onAreaLabelChange)
 
   useEffect(() => { clickRef.current = onLocationClick }, [onLocationClick])
+  useEffect(() => {
+    locationLongPressRef.current = onLocationLongPress
+  }, [onLocationLongPress])
   useEffect(() => { onUserLocationRef.current = onUserLocation }, [onUserLocation])
   useEffect(() => { currentLocationRef.current = userLocation }, [userLocation])
   useEffect(() => { longPressRef.current = onLongPress }, [onLongPress])
@@ -78,6 +102,9 @@ export default function MapView({
   useEffect(() => {
     viewportModeChangeRef.current = onViewportModeChange
   }, [onViewportModeChange])
+  useEffect(() => {
+    areaLabelChangeRef.current = onAreaLabelChange
+  }, [onAreaLabelChange])
 
   useEffect(() => {
     if (mapRef.current) return
@@ -95,14 +122,19 @@ export default function MapView({
       config: {
         basemap: STANDARD_BASEMAP_CONFIG,
       },
+      maxZoom: MAP_MAX_ZOOM,
     })
 
     mapRef.current = map
+    map.dragRotate.enable()
+    map.touchZoomRotate.enable()
+    map.touchZoomRotate.enableRotation()
 
     const geolocate = new mapboxgl.GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
       trackUserLocation: true,
       showUserHeading: true,
+      showUserLocation: false,
       showAccuracyCircle: true,
       fitBoundsOptions: { maxZoom: 16 },
     })
@@ -112,9 +144,29 @@ export default function MapView({
     geolocate.on('geolocate', (event) => {
       const coordinate = [event.coords.longitude, event.coords.latitude]
       currentLocationRef.current = coordinate
+      syncCurrentLocationRef.current?.(coordinate)
       onUserLocationRef.current?.(coordinate)
       fitMapToRadius(map, coordinate)
     })
+
+    const syncCurrentLocation = (coordinate) => {
+      if (!coordinate) return
+
+      if (!currentLocationMarkerRef.current) {
+        const element = document.createElement('div')
+        element.className = 'current-location-dot'
+        element.setAttribute('aria-hidden', 'true')
+        currentLocationMarkerRef.current = new mapboxgl.Marker({
+          element,
+          anchor: 'center',
+          pitchAlignment: 'viewport',
+          rotationAlignment: 'viewport',
+        }).setLngLat(coordinate).addTo(map)
+      }
+
+      syncCurrentLocationMarker(currentLocationMarkerRef.current, coordinate)
+    }
+    syncCurrentLocationRef.current = syncCurrentLocation
 
     map.on('load', () => {
       map.addSource('suburbs', {
@@ -178,6 +230,17 @@ export default function MapView({
 
       for (const layer of createFarThoughtLayers()) map.addLayer(layer)
 
+      fitFeatureToMiddleHalf(map, FITZROY_FEATURE, {
+        width: map.getContainer().clientWidth,
+        height: map.getContainer().clientHeight,
+        topRail: 54,
+      })
+      syncCurrentLocation(currentLocationRef.current)
+      areaLabelChangeRef.current?.(getAreaLabel([
+        map.getCenter().lng,
+        map.getCenter().lat,
+      ]))
+
       map.on('click', 'locked-suburb-hit-area', (event) => {
         const feature = event.features?.[0]
         if (feature?.properties?.status === 'locked') {
@@ -198,11 +261,19 @@ export default function MapView({
         const viewportMode = getViewportMode(getViewportWidthMeters(map))
         viewportModeChangeRef.current?.(viewportMode)
       })
+
+      map.on('moveend', () => {
+        const center = map.getCenter()
+        areaLabelChangeRef.current?.(getAreaLabel([center.lng, center.lat]))
+      })
+
+      map.on('rotate', () => setBearing(map.getBearing()))
     })
 
     const syncMarkers = (currentMap = map) => {
       const styleReady = currentMap.isStyleLoaded()
-      const viewportMode = getViewportMode(getViewportWidthMeters(currentMap))
+      const viewportWidthMeters = getViewportWidthMeters(currentMap)
+      const viewportMode = getViewportMode(viewportWidthMeters)
       const showMarkers = viewportMode !== 'far'
       const currentIds = new Set(locationsRef.current.map((l) => l.location_id))
 
@@ -225,6 +296,8 @@ export default function MapView({
 
       for (const [id, marker] of markersRef.current.entries()) {
         if (!currentIds.has(id)) {
+          markerHoldCleanupsRef.current.get(id)?.()
+          markerHoldCleanupsRef.current.delete(id)
           marker.remove()
           markersRef.current.delete(id)
         }
@@ -243,6 +316,13 @@ export default function MapView({
             )
             if (latest) clickRef.current?.(latest)
           }
+          const cleanupHold = attachElementLongPress(el, () => {
+            const latest = locationsRef.current.find(
+              (x) => x.location_id === loc.location_id
+            )
+            if (latest) locationLongPressRef.current?.(latest)
+          })
+          markerHoldCleanupsRef.current.set(loc.location_id, cleanupHold)
           el.addEventListener('click', (event) => {
             event.stopPropagation()
             openMarker()
@@ -283,16 +363,25 @@ export default function MapView({
         el.style.fontSize = `${markerPresentation.iconSize}px`
         el.style.setProperty('--marker-size', `${markerPresentation.visualSize}px`)
         el.style.display = showMarkers ? 'grid' : 'none'
-        el.classList.toggle('is-mine', Boolean(loc.isMine))
-        el.classList.toggle('is-close', Boolean(loc.isClose))
-        el.classList.toggle('is-unlocked', Boolean(loc.isUnlocked))
+        const markerState = getThoughtMarkerState(loc)
+        el.classList.toggle('is-mine', markerState.isMine)
+        el.classList.toggle('is-close', markerState.isClose)
+        el.classList.toggle('is-unlocked', markerState.isUnlocked)
       }
     }
     syncMarkersRef.current = syncMarkers
+    presentationSyncRef.current = createLocationPresentationSync(map, syncMarkers)
 
     map.on('move', () => syncMarkers(map))
 
     return () => {
+      presentationSyncRef.current?.destroy()
+      presentationSyncRef.current = null
+      for (const cleanupHold of markerHoldCleanupsRef.current.values()) cleanupHold()
+      markerHoldCleanupsRef.current.clear()
+      currentLocationMarkerRef.current?.remove()
+      currentLocationMarkerRef.current = null
+      syncCurrentLocationRef.current = null
       syncMarkersRef.current = null
       geolocateRef.current = null
       disposeMap(map, mapRef, markersRef)
@@ -304,12 +393,13 @@ export default function MapView({
     const map = mapRef.current
     if (!map) return
 
-    refreshLocationPresentation(
-      map,
-      toGeoJSON(locations),
-      syncMarkersRef.current,
-    )
+    presentationSyncRef.current?.update(toGeoJSON(locations))
   }, [locations])
+
+  useEffect(() => {
+    currentLocationRef.current = userLocation
+    syncCurrentLocationRef.current?.(userLocation)
+  }, [userLocation])
 
   useEffect(() => {
     const map = mapRef.current
@@ -329,9 +419,31 @@ export default function MapView({
     geolocateRef.current?.trigger()
   }
 
+  function resetBearing() {
+    mapRef.current?.easeTo({
+      bearing: MAP_3D_VIEW.bearing,
+      duration: 360,
+    })
+  }
+
   return (
     <>
       <div ref={containerRef} className="map" role="region" aria-label="PopBy map" />
+      <button
+        className="map-compass"
+        type="button"
+        onClick={resetBearing}
+        aria-label="Reset map direction"
+        title="Reset map direction"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          style={{ transform: `rotate(${-bearing}deg)` }}
+        >
+          <path d="m12 3 4.2 14.6L12 15l-4.2 2.6L12 3Z" />
+        </svg>
+      </button>
       <button
         className="recenter-button"
         type="button"
@@ -349,6 +461,8 @@ export default function MapView({
           map={mapRef.current}
           coordinate={dropCoordinate}
           onSelect={onDropCategorySelect}
+          onResolveAnchor={onDropAnchorResolve}
+          onResolveError={onDropResolveError}
           onCancel={onDropCancel}
         />
       )}

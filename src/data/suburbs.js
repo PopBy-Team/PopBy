@@ -64,6 +64,12 @@ export const FITZROY_FEATURE = {
   },
 }
 
+const LOCKED_SUBURB_FEATURES = [
+  rectangle(144.9547, -37.8074, 144.9736, -37.7910, 'Carlton', 'locked'),
+  rectangle(144.9843, -37.8098, 144.9985, -37.7931, 'Collingwood', 'locked'),
+  rectangle(144.9736, -37.7931, 144.9950, -37.7780, 'Fitzroy North', 'locked'),
+]
+
 const WEB_MERCATOR_WORLD_RING = [
   [-180, -85.051129],
   [180, -85.051129],
@@ -87,15 +93,34 @@ export function makeFitzroyMaskGeoJSON() {
 }
 
 export function makeSuburbsGeoJSON(carltonUnlocked = false) {
+  const lockedFeatures = LOCKED_SUBURB_FEATURES.map((feature) => {
+    if (feature.properties.name !== 'Carlton' || !carltonUnlocked) return feature
+    return {
+      ...feature,
+      properties: { ...feature.properties, status: 'unlocked' },
+    }
+  })
+
   return {
     type: 'FeatureCollection',
     features: [
       FITZROY_FEATURE,
-      rectangle(144.9547, -37.8074, 144.9736, -37.7910, 'Carlton', carltonUnlocked ? 'unlocked' : 'locked'),
-      rectangle(144.9843, -37.8098, 144.9985, -37.7931, 'Collingwood', 'locked'),
-      rectangle(144.9736, -37.7931, 144.9950, -37.7780, 'Fitzroy North', 'locked'),
+      ...lockedFeatures,
     ],
   }
+}
+
+export function getAreaLabel(coordinate) {
+  if (!Array.isArray(coordinate) || coordinate.length < 2) return 'MELBOURNE'
+  const coordinatePoint = point(coordinate)
+  const knownAreas = [FITZROY_FEATURE, ...LOCKED_SUBURB_FEATURES]
+  const match = knownAreas.find((feature) =>
+    booleanPointInPolygon(coordinatePoint, feature)
+  )
+
+  return match
+    ? `MELBOURNE · ${match.properties.name.toUpperCase()}`
+    : 'MELBOURNE'
 }
 
 export function pointInsideFitzroy([lng, lat]) {

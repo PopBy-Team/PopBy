@@ -5,13 +5,20 @@ import { markTipShown, shouldShowTip } from '../lib/guidance'
 import { CATEGORY_ICONS } from '../data/categories'
 import { cardAppearanceClassNames } from '../lib/cardAppearance'
 import { getSwipeDirection } from '../lib/swipe'
+import {
+  advanceSwipeIndicator,
+  formatThoughtTimestamp,
+  getSwipeIndicatorState,
+} from '../lib/cardPresentation'
 
 export default function ThoughtSheet({
   thoughts,
+  location,
   deviceId,
   onClose,
   onReported,
   onDeleted,
+  onAdd,
 }) {
   const deck = useMemo(() => buildThoughtDeck(thoughts), [thoughts])
   const [index, setIndex] = useState(0)
@@ -20,6 +27,7 @@ export default function ThoughtSheet({
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [swipeState, setSwipeState] = useState(() => getSwipeIndicatorState())
   const touchStart = useRef(null)
   const enteredAt = useRef(performance.now())
 
@@ -54,10 +62,12 @@ export default function ThoughtSheet({
   if (!current) return null
 
   function next() {
+    setSwipeState((value) => advanceSwipeIndicator(value, 'next'))
     setIndex((value) => (value + 1) % deck.length)
   }
 
   function previous() {
+    setSwipeState((value) => advanceSwipeIndicator(value, 'previous'))
     setIndex((value) => (value - 1 + deck.length) % deck.length)
   }
 
@@ -94,7 +104,7 @@ export default function ThoughtSheet({
 
   return (
     <div
-      className="thought-reader-stage"
+      className={showCardGuide ? 'thought-reader-stage has-card-guide' : 'thought-reader-stage'}
       role="dialog"
       aria-modal="true"
       aria-label="Thoughts at this location"
@@ -146,7 +156,7 @@ export default function ThoughtSheet({
               aria-label="Thought options"
               aria-expanded={optionsOpen}
             >
-              ⋮
+              <span aria-hidden="true">⋮</span>
             </button>
           </header>
 
@@ -198,31 +208,38 @@ export default function ThoughtSheet({
                 target="_blank"
                 rel="noreferrer"
               >
-                <span className="play">▶</span>
-                <span>
-                  <strong>Music</strong>
-                  <small>Open track</small>
-                </span>
+                <span className="play">🎵</span>
+                <strong>Open BGM</strong>
               </a>
             ) : <span />}
 
             <time className="reader-card-time">
-              {new Date(current.created_at).toLocaleString([], {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+              {formatThoughtTimestamp(current.created_at)}
             </time>
           </footer>
+
+          {deck.length > 1 && (
+            <div
+              key={`${swipeState.direction}-${swipeState.sequence}`}
+              className={`reader-swipe-dots is-${swipeState.direction}`}
+              aria-label={`Thought ${index + 1} of ${deck.length}`}
+              aria-live="polite"
+            >
+              <i />
+              <i />
+              <i />
+            </div>
+          )}
         </article>
+        <button
+          className="reader-add-button"
+          type="button"
+          onClick={() => onAdd?.(location)}
+        >
+          Add
+        </button>
       </div>
 
-      {deck.length > 1 && (
-        <div className="reader-position" aria-live="polite">
-          {index + 1} / {deck.length}
-        </div>
-      )}
     </div>
   )
 }

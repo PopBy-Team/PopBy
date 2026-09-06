@@ -14,15 +14,18 @@ import {
 } from './lib/api'
 import { DEMO_LOCATION, DEMO_MODE, getDeviceId } from './lib/device'
 import { distanceMeters } from './lib/geo'
+import { getDropPermission } from './lib/dropIntent'
 import {
   completeOnboarding,
   getMapStatus,
   isOnboardingComplete,
   markTipShown,
   shouldShowTip,
+  friendlyPublishError,
 } from './lib/guidance'
-import { pointInsideFitzroy } from './data/suburbs'
 import { shouldDismissProgress } from './lib/mapPresentation'
+import { setPageZoomLocked } from './lib/mapLifecycle'
+import { getSafeAnchor } from './lib/privacy'
 
 const EMPTY_STATS = {
   active_locations: 0,
@@ -41,11 +44,15 @@ export default function App() {
   const [dropDraft, setDropDraft] = useState(null)
   const [thoughts, setThoughts] = useState([])
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [activeLocation, setActiveLocation] = useState(null)
   const [toast, setToast] = useState('')
   const [coachTip, setCoachTip] = useState(null)
   const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingComplete())
   const [loading, setLoading] = useState(true)
   const [progressDismissed, setProgressDismissed] = useState(false)
+  const [areaLabel, setAreaLabel] = useState('MELBOURNE · FITZROY')
+
+  useEffect(() => setPageZoomLocked(sheetOpen || Boolean(dropDraft)), [sheetOpen, dropDraft])
 
   const showToast = useCallback((message) => {
     setToast(message)
@@ -104,6 +111,7 @@ export default function App() {
 
   async function openLocation(loc) {
     dismissCoach()
+    setActiveLocation(loc)
 
     if (mineMode && loc.isMine) {
       try {
@@ -159,39 +167,59 @@ export default function App() {
 
   function handleLongPress(coordinate) {
     dismissCoach()
-
-    if (!userLocation) {
-      showCoachOnce('drop_location_required', {
-        position: 'bottom-right',
-        eyebrow: 'Before you drop',
-        title: 'Turn on your location',
-        body: 'PopBy needs your live position to confirm the point you choose is within 50m of you.',
-      })
+    const permission = getDropPermission(userLocation, coordinate)
+    if (!permission.allowed) {
+      showDropPermissionTip(permission)
       return
     }
 
-    if (!pointInsideFitzroy(coordinate)) {
-      showCoachOnce('drop_area', {
+    setDropDraft({ coordinate, category: null, targetLocationId: null })
+  }
+
+  function showDropPermissionTip(permission) {
+    const copy = {
+      location_required: {
+        key: 'drop_location_required',
+        position: 'bottom-right',
+        eyebrow: 'Before you add',
+        title: 'Turn on your location',
+        body: 'PopBy needs your position before you add here.',
+      },
+      outside_active_area: {
+        key: 'drop_area',
         position: 'center',
         eyebrow: 'Awaiting unlock',
         title: 'Drop inside the open area',
-        body: 'For this MVP, new Thoughts can only be left inside Fitzroy. Grey suburbs open later as the community reaches the progress goals.',
-      })
-      return
-    }
-
-    const meters = distanceMeters(userLocation, coordinate)
-    if (meters > 50) {
-      showCoachOnce('drop_distance', {
+        body: 'Choose a point inside a bright, open area.',
+      },
+      too_far: {
+        key: 'drop_distance',
         position: 'center',
-        eyebrow: 'Too far to drop',
-        title: 'Long-press within 50m of you',
-        body: `That point is about ${Math.round(meters)}m away. Pick somewhere closer to where you’re actually standing.`,
-      })
+        eyebrow: 'Before you add',
+        title: 'Move closer to add here',
+        body: `This place is about ${Math.round(permission.distanceMeters)}m away.`,
+      },
+    }[permission.reason]
+
+    if (copy) showCoachOnce(copy.key, copy)
+  }
+
+  function beginDropAtLocation(location, openComposer = false) {
+    if (!location) return
+    dismissCoach()
+    const coordinate = [Number(location.lng), Number(location.lat)]
+    const permission = getDropPermission(userLocation, coordinate)
+    if (!permission.allowed) {
+      showDropPermissionTip(permission)
       return
     }
 
-    setDropDraft({ coordinate, category: null })
+    setSheetOpen(false)
+    setDropDraft({
+      coordinate,
+      category: openComposer ? 'Moment' : null,
+      targetLocationId: location.location_id,
+    })
   }
 
   function completeTour() {
@@ -213,7 +241,7 @@ export default function App() {
           position: 'bottom-left',
           eyebrow: 'Try the map',
           title: 'Zoom out, then zoom back in',
-          body: 'Far away, Thoughts glow like pale-yellow fireflies. Closer in, their category icons and sizes become visible.',
+          body: 'Far away, Thoughts glow like warm fireflies. Closer in, their category icons and sizes become visible.',
         })
       }, 200)
     }
@@ -228,7 +256,7 @@ export default function App() {
         position: 'top-right',
         eyebrow: 'Mine is on',
         title: 'Only your memories are showing',
-        body: 'Your own Thought locations glow and can be opened from anywhere. Other people’s Thoughts at the same location stay hidden in Mine.',
+        body: 'Your own Thought locations stay easy to find and can be opened from anywhere. Other people’s Thoughts at the same location stay hidden in Mine.',
       })
     }
   }
@@ -239,7 +267,7 @@ export default function App() {
       eyebrow: 'Awaiting unlock',
       title: `${name} isn’t open yet`,
       body:
-        'Fitzroy must reach all four goals first: 15 active locations, 50 Thoughts, 30 contributors and 50 successful unlocks.',
+        'The current open area must reach all four goals first: 15 active locations, 50 Thoughts, 30 contributors and 50 successful unlocks.',
     })
   }
 
@@ -259,8 +287,26 @@ export default function App() {
         progress={Number(stats.progress || 0)}
         userLocation={userLocation}
         dropCoordinate={dropDraft && !dropDraft.category ? dropDraft.coordinate : null}
-        onDropCategorySelect={(category) => {
-          setDropDraft((current) => current ? { ...current, category } : null)
+        onDropCategorySelect={(category, privacy) => {
+          setDropDraft((current) => current ? {
+            ...current,
+            category,
+            privacy,
+            anchorMoved: Boolean(
+              privacy?.insideBuilding
+              && Number(privacy?.distanceMeters || 0) > 0.5
+            ),
+          } : null)
+        }}
+        onDropAnchorResolve={(coordinate) => getSafeAnchor(coordinate)}
+        onDropResolveError={(error) => {
+          setDropDraft(null)
+          const friendly = friendlyPublishError(error.message)
+          setCoachTip({
+            position: 'center',
+            eyebrow: 'Safer location',
+            ...friendly,
+          })
         }}
         onDropCancel={() => setDropDraft(null)}
         onUserLocation={(coordinate) => {
@@ -270,6 +316,7 @@ export default function App() {
           }
         }}
         onLocationClick={openLocation}
+        onLocationLongPress={(location) => beginDropAtLocation(location, false)}
         onLongPress={handleLongPress}
         onLockedSuburbClick={showLockedSuburb}
         onViewportModeChange={(viewportMode) => {
@@ -277,6 +324,7 @@ export default function App() {
             shouldDismissProgress(current, 'zoomend', viewportMode)
           )
         }}
+        onAreaLabelChange={setAreaLabel}
       />
 
       {mapStatus && !showOnboarding && (
@@ -298,11 +346,7 @@ export default function App() {
         aria-label={mineMode ? 'Show all Thoughts' : 'Show only my Thoughts'}
         title="Mine"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="7" y="5" width="11" height="14" rx="2.5" />
-          <path d="M7 8H5.5A2.5 2.5 0 0 0 3 10.5v7A2.5 2.5 0 0 0 5.5 20H14" />
-        </svg>
-        <span className="sr-only">Mine</span>
+        Mine
       </button>
 
       <button
@@ -317,9 +361,7 @@ export default function App() {
         ?
       </button>
 
-      {DEMO_MODE && (
-        <div className="demo-badge">Demo GPS · Fitzroy</div>
-      )}
+      <div className="demo-badge" aria-live="polite">{areaLabel}</div>
 
       <Toast message={toast} />
 
@@ -335,6 +377,9 @@ export default function App() {
           initialCategory={dropDraft.category}
           userLocation={userLocation}
           deviceId={deviceId}
+          targetLocationId={dropDraft.targetLocationId}
+          privacyResult={dropDraft.privacy}
+          showAnchorNotice={dropDraft.anchorMoved}
           onClose={() => setDropDraft(null)}
           onPublished={async () => {
             showToast('Thought dropped')
@@ -353,6 +398,7 @@ export default function App() {
       {sheetOpen && (
         <ThoughtSheet
           thoughts={thoughts}
+          location={activeLocation}
           deviceId={deviceId}
           onClose={() => setSheetOpen(false)}
           onReported={refresh}
@@ -360,6 +406,7 @@ export default function App() {
             setThoughts((current) => current.filter((thought) => thought.id !== thoughtId))
             await refresh()
           }}
+          onAdd={(location) => beginDropAtLocation(location, true)}
         />
       )}
     </main>

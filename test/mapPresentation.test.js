@@ -59,13 +59,13 @@ test('street labels use a soft, lighter mid-tone color', async () => {
   assert.ok(channels.every((channel) => channel >= 115))
 })
 
-test('far Thought dots glow like pale-yellow fireflies inside a finger-sized hit layer', async () => {
+test('far Thought dots glow like warm amber fireflies inside a finger-sized hit layer', async () => {
   const { createFarThoughtLayers } = await loadPresentation()
   const [visualLayer, hitLayer] = createFarThoughtLayers()
 
   assert.equal(visualLayer.id, 'far-thought-dots')
   assert.equal(visualLayer.paint['circle-radius'], 4.5)
-  assert.equal(visualLayer.paint['circle-color'], '#fff0a8')
+  assert.equal(visualLayer.paint['circle-color'], '#f4c66b')
   assert.ok(visualLayer.paint['circle-blur'] > 0)
   assert.ok(visualLayer.paint['circle-emissive-strength'] > 0)
   assert.ok(visualLayer.paint['circle-stroke-width'] > 0)
@@ -73,6 +73,25 @@ test('far Thought dots glow like pale-yellow fireflies inside a finger-sized hit
   assert.equal(hitLayer.paint['circle-radius'], 22)
   assert.ok(hitLayer.paint['circle-opacity'] > 0)
   assert.ok(hitLayer.paint['circle-opacity'] <= 0.01)
+})
+
+test('own Thoughts keep their category appearance while explored points dim', async () => {
+  const { getThoughtMarkerState } = await loadPresentation()
+
+  assert.deepEqual(getThoughtMarkerState({ isMine: true, isClose: true }), {
+    isMine: true,
+    isClose: true,
+    isUnlocked: false,
+  })
+  assert.deepEqual(getThoughtMarkerState({
+    isMine: true,
+    isClose: true,
+    isUnlocked: true,
+  }), {
+    isMine: true,
+    isClose: false,
+    isUnlocked: true,
+  })
 })
 
 test('far mode hides detail labels while retaining suburb and locality names', async () => {
@@ -172,6 +191,56 @@ test('location changes refresh HTML markers even while the map style is settling
   assert.equal(renderedMarkerMap, map)
 })
 
+test('latest Mine locations replay when the style becomes ready', async () => {
+  const { createLocationPresentationSync } = await loadPresentation()
+  const listeners = new Map()
+  let source = null
+  let sourceData = null
+  let repaintCount = 0
+  let markerSyncCount = 0
+  const map = {
+    getSource: () => source,
+    on: (type, handler) => listeners.set(type, handler),
+    off: (type, handler) => {
+      if (listeners.get(type) === handler) listeners.delete(type)
+    },
+    triggerRepaint: () => { repaintCount += 1 },
+  }
+  const sync = createLocationPresentationSync(map, () => { markerSyncCount += 1 })
+  const mineData = {
+    type: 'FeatureCollection',
+    features: [{ id: 'mine' }],
+  }
+
+  sync.update(mineData)
+  source = { setData: (data) => { sourceData = data } }
+  listeners.get('styledata')()
+
+  assert.equal(sourceData, mineData)
+  assert.ok(markerSyncCount >= 2)
+  assert.ok(repaintCount >= 2)
+  sync.destroy()
+  assert.equal(listeners.has('styledata'), false)
+})
+
+test('current-location marker follows the latest GPS coordinate', async () => {
+  const { syncCurrentLocationMarker } = await loadPresentation()
+  const coordinates = []
+  const marker = {
+    setLngLat(value) {
+      coordinates.push(value)
+      return marker
+    },
+  }
+
+  assert.deepEqual(
+    syncCurrentLocationMarker(marker, [144.9788, -37.8005]),
+    [144.9788, -37.8005],
+  )
+  assert.deepEqual(coordinates, [[144.9788, -37.8005]])
+  assert.equal(syncCurrentLocationMarker(marker, null), null)
+})
+
 test('Thought marker CSS preserves Mapbox absolute positioning during zoom', async () => {
   const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
   const markerRule = css.match(/\.thought-marker\s*\{[^}]+\}/)?.[0] || ''
@@ -180,4 +249,36 @@ test('Thought marker CSS preserves Mapbox absolute positioning during zoom', asy
   assert.match(markerRule, /z-index:\s*1/)
   assert.match(markerRule, /top:\s*0/)
   assert.match(markerRule, /left:\s*0/)
+})
+
+test('marker CSS has no blue Mine glow and gives unlocked markers a quiet fill', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const mineRule = css.match(/\.thought-marker\.is-mine::before\s*\{[^}]*\}/)?.[0] || ''
+  const unlockedRule = css.match(/\.thought-marker\.is-unlocked::before\s*\{[^}]*\}/)?.[0] || ''
+
+  assert.doesNotMatch(mineRule, /161,\s*222,\s*255/)
+  assert.match(unlockedRule, /background:\s*rgba\(/)
+  assert.doesNotMatch(unlockedRule, /border:\s*2px/)
+})
+
+test('landscape reader card leaves room for the Add button inside the viewport', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const landscapeRules = css.slice(css.lastIndexOf('@media (orientation: landscape)'))
+
+  assert.match(
+    landscapeRules,
+    /height:\s*calc\(100dvh - var\(--top-ui-rail\) - 66px\)/,
+  )
+})
+
+test('landscape composer keeps the send and editing controls inside the viewport', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const landscapeComposer = css.match(
+    /@media \(orientation: landscape\) and \(max-height: 500px\) \{[\s\S]*?\/\* CENTERED THOUGHT READER/,
+  )?.[0] || ''
+
+  assert.match(
+    landscapeComposer,
+    /height:\s*calc\(100dvh - var\(--top-ui-rail\) - 10px\)/,
+  )
 })

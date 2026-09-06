@@ -138,10 +138,10 @@ Required:
 - automatic timestamp
 
 Optional:
-- 0–200 words text
+- 0–150 words text
 - background: `solid | lined | grid | photo`
 - current-scene photo
-- music URL
+- music URL (HTTP(S), maximum 300 characters)
 
 Music is only a player-like external link:
 
@@ -166,6 +166,10 @@ After successful unlock, that device may reopen that public location remotely.
 ## Drop
 
 Start with map long-press (~650ms).
+
+Users may long-press either open ground or an existing Thought point. Holding
+an existing point must keep that point's location ID so publishing aggregates
+there deliberately, subject to the same privacy and distance checks.
 
 Raw selected point must:
 - be inside active Fitzroy
@@ -310,7 +314,7 @@ Configure if supported:
 - lightPreset `day`
 - showPointOfInterestLabels false
 - showTransitLabels false
-- show3dObjects false
+- show3dObjects true
 - showPedestrianRoads true
 - showRoadLabels true
 
@@ -372,6 +376,20 @@ On geolocate:
 - store `[lng,lat]`
 - fit map to ~370m radius using Turf `circle(...0.37km)` + `bbox` + `fitBounds`.
 
+## Mobile map refinement
+
+- On first load, fit the complete Fitzroy boundary into roughly the middle half
+  of the phone screen.
+- Set maximum map zoom to `20`.
+- Keep every fixed top control/card below the bottom of the centered PopBy logo.
+- Render Mine as a compact text pill without an outer glow and update both dots
+  and HTML markers immediately when Mine changes; no extra map gesture may be
+  required.
+- Render the latest GPS/demo position as a small blue breathing light and keep
+  the bottom-right recenter action functional.
+- Demo and seeded location coordinates must use verified accepted Tilequery
+  road/path anchors, not building interiors.
+
 ---
 
 # 4. First-user guidance
@@ -402,8 +420,9 @@ Store completion in localStorage and add `?` to replay.
 
 4. **Drop**
    - Title: `Leave something behind where you noticed it.`
-   - Body: long-press within 50m, choose category/card/content.
-   - Note: 5/device/hour, 3/location/hour.
+   - Body: long-press open ground or an existing Thought point within 50m,
+     choose category/card/content.
+   - Note: 150 words, 5/device/hour, 3/location/hour.
 
 5. **Privacy**
    - Title: `Your exact drop point isn’t published.`
@@ -445,7 +464,9 @@ After publish:
 - toast `Thought dropped`
 - optional one-time hint: `Turn on Mine to find it again.`
 
-Drop Composer top strip must always show:
+Drop Composer shows this strip only for the browser's first publish attempt;
+afterward, show the same rules contextually when an attempted action exceeds
+them:
 
 ```text
 within 50m of you · 5/hour per device · 3/hour at one location
@@ -455,7 +476,7 @@ within 50m of you · 5/hour per device · 3/hour at one location
 
 # 5. Thought cards
 
-Open in mobile bottom sheet.
+Open as a centered mobile card. Tap the dimmed space outside the card to close.
 
 Show:
 - category
@@ -489,14 +510,15 @@ Sort newest → oldest.
 
 Implement pure `buildThoughtDeck()` in `src/lib/cardOrder.js`.
 
-Support swipe left/right and arrow buttons.
+Support swipe left/right without dedicated arrow buttons. Show three subtle
+animated dots at the bottom of the card as the swipe affordance.
 First card open shows small dismissible: `Newest first. Swipe left/right for more.`
 
 ---
 
 # 6. Drop Composer
 
-Bottom sheet.
+Centered card editor.
 
 Step 1 Category:
 - 7 chips
@@ -518,8 +540,12 @@ Step 2 Background:
 - client max 6MB
 
 Step 3 Content:
-- optional textarea, live word count, max 200
-- optional music URL
+- optional textarea, live word count, max 150
+- optional BGM URL, HTTP(S), maximum 300 characters; invalid links get concise
+  inline feedback and suggest writing the song name in the Thought instead
+- category icon in the top-left remains editable
+- top-right publish action is a send icon, not text
+- default copy: `You’re marking your spot…` and `Pick BGM`
 
 Privacy disclosure:
 - summary `How PopBy protects this location`
@@ -660,18 +686,21 @@ body
 background_type
 image_url
 music_url
+target_location_id
 ```
 
 Validation order:
 1. suburb must be Fitzroy
 2. category/background valid
-3. body <=200 words
+3. body <=150 words
 4. construct user/raw/safe geography
 5. require user→raw <=50m
 6. require raw→safe <=60m
 7. device last-hour count <5
-8. find nearest location within 20m safe anchor
-9. create node if none
+8. when a target location ID is supplied, require its Fitzroy node to be
+   within 20m of the verified safe anchor; otherwise find the nearest location
+   within 20m
+9. create a node only when no explicit target was supplied and none is nearby
 10. node last-hour Thought count <3
 11. insert Thought
 12. return Thought ID
@@ -1009,7 +1038,7 @@ Map:
 - Safe Anchor failure
   → `Move toward a public path`
 - word limit
-  → `200-word maximum`
+  → `150-word maximum`
 
 Do not show SQL jargon for expected rules.
 
@@ -1054,7 +1083,7 @@ Then check:
 - [ ] long-press
 - [ ] Fitzroy-only Drop
 - [ ] <=50m Drop
-- [ ] <=200 words
+- [ ] <=150 words
 - [ ] Building Check
 - [ ] Safe Anchor
 - [ ] raw coordinate not stored
