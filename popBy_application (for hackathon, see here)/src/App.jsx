@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import ProgressCard from './components/ProgressCard'
 import Toast from './components/Toast'
@@ -17,9 +17,9 @@ import { distanceMeters } from './lib/geo'
 import { getDropPermission } from './lib/dropIntent'
 import {
   completeOnboarding,
+  getCoachTipPolicy,
   getMapStatus,
   markTipShown,
-  shouldShowTip,
   friendlyPublishError,
   getLockedAreaTip,
 } from './lib/guidance'
@@ -87,6 +87,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [progressDismissed, setProgressDismissed] = useState(false)
   const [areaLabel, setAreaLabel] = useState('MELBOURNE · FITZROY')
+  const coachPresentationRef = useRef(0)
 
   useEffect(() => setPageZoomLocked(sheetOpen || Boolean(dropDraft)), [sheetOpen, dropDraft])
 
@@ -97,13 +98,20 @@ export default function App() {
   }, [])
 
   const dismissCoach = useCallback(() => {
-    if (coachTip?.key) markTipShown(coachTip.key)
+    if (coachTip?.rememberOnDismiss && coachTip?.key) markTipShown(coachTip.key)
     setCoachTip(null)
   }, [coachTip])
 
-  const showCoachOnce = useCallback((key, tip) => {
-    if (!shouldShowTip(key)) return
-    setCoachTip({ key, ...tip })
+  const showCoach = useCallback((key, tip) => {
+    const policy = getCoachTipPolicy(key)
+    if (!policy.shouldShow) return
+    coachPresentationRef.current += 1
+    setCoachTip({
+      key,
+      presentationId: coachPresentationRef.current,
+      rememberOnDismiss: policy.rememberOnDismiss,
+      ...tip,
+    })
   }, [])
 
   const refresh = useCallback(async () => {
@@ -162,7 +170,7 @@ export default function App() {
 
     if (!loc.isUnlocked) {
       if (!userLocation) {
-        showCoachOnce('location_required', {
+        showCoach('location_required', {
           position: 'bottom-right',
           eyebrow: 'Location needed',
           title: 'Turn on your location',
@@ -172,13 +180,13 @@ export default function App() {
       }
 
       if (!loc.isClose) {
-        showCoachOnce('unlock_distance', {
+        showCoach('unlock_distance', {
           position: 'center',
           eyebrow: loc.isApproaching ? 'Approaching…' : 'Get closer',
           title: 'Thoughts unlock within 50m',
           body: loc.isApproaching
             ? 'You’re nearly there. Keep moving toward this icon and it will glow when it becomes unlockable.'
-            : 'This Thought is still too far away. Walk closer and try again.',
+            : 'This Thought is waiting there. Head closer to discover it.',
         })
         return
       }
@@ -231,11 +239,11 @@ export default function App() {
         position: 'center',
         eyebrow: 'Before you add',
         title: 'Move closer to add here',
-        body: `This place is about ${Math.round(permission.distanceMeters)}m away.`,
+        body: `This place is about ${Math.round(permission.distanceMeters)}m away. Walk over when you’re ready to leave a Thought here.`,
       },
     }[permission.reason]
 
-    if (copy) showCoachOnce(copy.key, copy)
+    if (copy) showCoach(copy.key, copy)
   }
 
   function beginDropAtLocation(location, openComposer = false) {
@@ -299,7 +307,7 @@ export default function App() {
     setMineMode(next)
 
     if (next) {
-      showCoachOnce('mine', {
+      showCoach('mine', {
         position: 'top-right',
         eyebrow: 'Mine is on',
         title: 'Only your memories are showing',
@@ -433,7 +441,11 @@ export default function App() {
 
       <Toast message={toast} />
 
-      <CoachTip tip={coachTip} onDismiss={dismissCoach} />
+      <CoachTip
+        key={coachTip?.presentationId}
+        tip={coachTip}
+        onDismiss={dismissCoach}
+      />
 
       {showOnboarding && (
         <OnboardingTour onComplete={completeTour} onReplay={replayAnimatedTutorial} />
@@ -459,7 +471,7 @@ export default function App() {
             showToast('Thought dropped')
             await refresh()
 
-            showCoachOnce('after_drop', {
+            showCoach('after_drop', {
               position: 'top-right',
               eyebrow: 'Saved',
               title: 'Find it again with Mine',
