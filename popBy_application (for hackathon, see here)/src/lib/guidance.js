@@ -4,6 +4,7 @@ const GUIDE_VERSION = 'v6'
 
 const onboardingKey = `popby_onboarding_${GUIDE_VERSION}`
 const firstPublishKey = 'popby_first_thought_published_v1'
+const REPEATABLE_COACH_TIPS = new Set(['unlock_distance', 'drop_distance'])
 
 function tipKey(name) {
   return `popby_tip_${GUIDE_VERSION}_${name}`
@@ -90,6 +91,14 @@ export function completeOnboarding(storage) {
 
 export function shouldShowTip(name, storage) {
   return getStorage(storage).getItem(tipKey(name)) !== 'shown'
+}
+
+export function getCoachTipPolicy(name, storage) {
+  const repeatable = REPEATABLE_COACH_TIPS.has(name)
+  return {
+    shouldShow: repeatable || shouldShowTip(name, storage),
+    rememberOnDismiss: !repeatable,
+  }
 }
 
 export function markTipShown(name, storage) {

@@ -56,6 +56,28 @@ test('onboarding completion and coach tips persist until reset', () => {
   assert.equal(shouldShowTip('mine', storage), true)
 })
 
+test('distance action tips remain repeatable after they have been dismissed', () => {
+  const storage = memoryStorage()
+
+  markTipShown('unlock_distance', storage)
+  markTipShown('drop_distance', storage)
+  markTipShown('mine', storage)
+
+  assert.equal(typeof guidance.getCoachTipPolicy, 'function')
+  assert.deepEqual(guidance.getCoachTipPolicy('unlock_distance', storage), {
+    shouldShow: true,
+    rememberOnDismiss: false,
+  })
+  assert.deepEqual(guidance.getCoachTipPolicy('drop_distance', storage), {
+    shouldShow: true,
+    rememberOnDismiss: false,
+  })
+  assert.deepEqual(guidance.getCoachTipPolicy('mine', storage), {
+    shouldShow: false,
+    rememberOnDismiss: true,
+  })
+})
+
 test('expected publish rules are translated into friendly messages', () => {
   assert.deepEqual(friendlyPublishError('Hourly drop limit reached'), {
     title: '5-drop limit reached',
