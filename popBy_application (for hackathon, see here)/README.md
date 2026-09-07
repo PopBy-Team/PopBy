@@ -6,6 +6,7 @@ small Thoughts tied to real places. Walk closer to discover what someone
 noticed, or leave something for the next person.
 
 There are no profiles, follower counts, likes, or pressure to reply.
+
 **Introduction website:** [popbypop.vercel.app](popbypop.vercel.app)
 
 **Live demo:** [pop-up-nu.vercel.app](https://pop-up-nu.vercel.app)
