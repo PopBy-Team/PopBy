@@ -7,7 +7,9 @@ noticed, or leave something for the next person.
 
 There are no profiles, follower counts, likes, or pressure to reply.
 **Introduction website:** [popbypop.vercel.app](popbypop.vercel.app)
+
 **Live demo:** [pop-up-nu.vercel.app](https://pop-up-nu.vercel.app)
+
 **3-min pitch video:** [https://youtu.be/lXrwd1sZumY](https://youtu.be/lXrwd1sZumY)
 
 ## Features
