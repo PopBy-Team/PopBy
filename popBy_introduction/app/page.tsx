@@ -1,7 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, MapPin, MessageCircleHeart, Navigation, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const appUrl = "https://pop-up-nu.vercel.app";
 
@@ -14,6 +15,12 @@ const stories = [
   { number: "01", title: "The Casual\nVisit", chinese: "顺路的轻盈", text: '“Pop by” is the simplest, most effortless invitation in daily life. No elaborate planning, no social agendas. Just step outside and casually turn a new corner.', color: "bg-[#E9C7B8]", dot: "bg-[#D8755A]" },
   { number: "02", title: "Popping\nUp", chinese: "浮现的记忆", text: "City architecture may be cold, but streets hold memories. As you draw near, invisible stories gently pop up like soft bubbles on your screen.", color: "bg-[#D5E2D5]", dot: "bg-[#7EAA91]" },
   { number: "03", title: "Presence\nwithout Pressure", chinese: "异步的陪伴", text: '“I passed by and left a piece of my mind; you walked by and picked up a spark of resonance.” Feel human connection without algorithmic noise.', color: "bg-[#EDE2B8]", dot: "bg-[#C59D44]" },
+];
+
+const demoThoughts = [
+  { icon: "🌳", label: "someone passed by", body: "The late sun makes this corner feel like a small town.", distance: "24m away" },
+  { icon: "🎵", label: "a sound nearby", body: "A busker turned the whole lane into a tiny film scene.", distance: "31m away" },
+  { icon: "✨", label: "a moment stayed", body: "Today felt lighter after I took the long way home.", distance: "12m away" },
 ];
 
 function StoryScene({ type }: { type: number }) {
@@ -65,24 +72,37 @@ function LaunchButton({ children, className = "" }: { children: React.ReactNode;
 }
 
 function DevicePreview() {
+  const [thoughtIndex, setThoughtIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setThoughtIndex((current) => (current + 1) % demoThoughts.length), 3600);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const thought = demoThoughts[thoughtIndex];
+
   return <div className="relative mx-auto w-full max-w-[420px]">
     <div className="absolute -left-12 top-20 h-28 w-28 rounded-full bg-[#E7BBAA]/40 blur-2xl" />
     <div className="absolute -right-10 bottom-24 h-32 w-32 rounded-full bg-[#A5C4AD]/40 blur-2xl" />
-    <motion.div initial={{ opacity: 0, rotate: 4, y: 30 }} animate={{ opacity: 1, rotate: 3, y: 0 }} transition={{ duration: .8, ease: "easeOut" }} className="relative overflow-hidden rounded-[2.5rem] border-[7px] border-[#292824] bg-[#F6EBDD] p-3 shadow-[18px_22px_0_rgba(42,40,36,.13)]">
+    <motion.div initial={{ opacity: 0, rotate: 4, y: 30 }} animate={{ opacity: 1, rotate: [3, 2.2, 3], y: [0, -4, 0] }} transition={{ opacity: { duration: .8 }, rotate: { duration: 8, repeat: Infinity }, y: { duration: 8, repeat: Infinity }, ease: "easeInOut" }} className="relative overflow-hidden rounded-[2.5rem] border-[7px] border-[#292824] bg-[#F6EBDD] p-3 shadow-[18px_22px_0_rgba(42,40,36,.13)]">
       <div className="relative h-[470px] overflow-hidden rounded-[2rem] bg-[#DDE8D9]">
         <div className="absolute inset-0 opacity-45 paper-grid" />
         <svg className="absolute inset-0 h-full w-full" viewBox="0 0 400 520" fill="none" aria-hidden="true">
           <path className="map-line" d="M-23 101C89 23 145 150 218 82s101 5 210-48M-11 347c71-88 139 10 213-68s124-58 222-33M82-3c6 111 61 136 31 225s-29 126 44 298M307-7c-89 81-31 129-115 210s-8 166-114 318" stroke="#8CA994" strokeWidth="3" strokeLinecap="round" />
           <path d="M-18 203c103 37 154-15 230 48s129 34 206 98" stroke="#D5977E" strokeWidth="3" strokeLinecap="round" />
+          <motion.circle cx="70" cy="360" r="5" fill="#D8755A" animate={{ cx: [70, 145, 226, 328], cy: [360, 304, 337, 267] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }} />
         </svg>
         <div className="absolute left-4 right-4 top-5 flex items-center justify-between text-[10px] font-semibold"><span>9:41</span><span className="rounded-full bg-[#FDFBF7]/75 px-2 py-1">around Carlton</span><span>•••</span></div>
         <motion.div animate={{ y: [0, -7, 0] }} transition={{ duration: 3, repeat: Infinity }} className="absolute left-[29%] top-[28%] grid h-12 w-12 place-items-center rounded-full bg-clay shadow-lg"><MapPin size={23} fill="#FDFBF7" color="#FDFBF7" /></motion.div>
         <motion.div animate={{ y: [0, 7, 0] }} transition={{ duration: 4, repeat: Infinity }} className="absolute bottom-[27%] right-[16%] grid h-9 w-9 place-items-center rounded-full bg-[#FDFBF7] shadow-md"><span className="h-2 w-2 rounded-full bg-sage" /></motion.div>
-        <motion.div initial={{ opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: .65, duration: .5 }} className="absolute left-[20%] top-[42%] max-w-[220px] rounded-[1.35rem] rounded-tl-sm bg-[#FDFBF7] p-4 shadow-[0_8px_24px_rgba(42,40,36,.12)]">
-          <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold text-clay"><span className="h-2 w-2 rounded-full bg-clay" />someone passed by</div>
-          <p className="font-display text-[19px] leading-[1.13] text-ink">The late sun makes this corner feel like a small town.</p>
-          <div className="mt-3 flex items-center justify-between border-t border-[#E9E2D6] pt-2 text-[10px] text-[#827d75]"><span>24m away</span><Sparkles size={13} className="text-[#C59D44]" /></div>
-        </motion.div>
+        <div className="firefly firefly-one" /><div className="firefly firefly-two" /><div className="firefly firefly-three" />
+        <AnimatePresence mode="wait">
+          <motion.div key={thoughtIndex} initial={{ opacity: 0, y: 18, scale: .94 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: .97 }} transition={{ duration: .48, ease: "easeOut" }} className="absolute left-[20%] top-[42%] max-w-[220px] rounded-[1.35rem] rounded-tl-sm bg-[#FDFBF7] p-4 shadow-[0_8px_24px_rgba(42,40,36,.12)]">
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold text-clay"><span className="text-sm">{thought.icon}</span>{thought.label}</div>
+            <p className="font-display text-[19px] leading-[1.13] text-ink">{thought.body}</p>
+            <div className="mt-3 flex items-center justify-between border-t border-[#E9E2D6] pt-2 text-[10px] text-[#827d75]"><span>{thought.distance}</span><Sparkles size={13} className="text-[#C59D44]" /></div>
+          </motion.div>
+        </AnimatePresence>
         <div className="absolute bottom-5 left-1/2 flex w-[86%] -translate-x-1/2 items-center gap-3 rounded-full bg-[#292824] px-4 py-3 text-[11px] text-paper"><div className="grid h-7 w-7 place-items-center rounded-full bg-clay"><Navigation size={13} fill="currentColor" /></div><span className="flex-1">Leave a thought here</span><span className="text-[#B6B1A8]">+</span></div>
       </div>
     </motion.div>
@@ -97,10 +117,10 @@ export default function Home() {
       <LaunchButton className="px-5 py-2.5 text-xs">Try PopBy</LaunchButton>
     </header>
 
-    <section id="top" className="mx-auto grid max-w-7xl items-center gap-16 px-6 pb-24 pt-12 md:grid-cols-[1.08fr_.92fr] md:px-10 md:pb-36 md:pt-20">
+    <section id="top" data-viewport-section="true" className="screen-section hero-section mx-auto grid max-w-7xl items-center gap-10 px-6 md:grid-cols-[1.08fr_.92fr] md:px-10">
       <motion.div initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: .12 } } }}>
         <motion.div variants={rise} className="mb-7 flex items-center gap-3 text-[11px] font-semibold tracking-[.17em] text-clay"><span className="h-px w-8 bg-clay" /> APP OF THE DAY <span className="text-[#9D9991]">/ EXPERIENCE</span></motion.div>
-        <motion.h1 variants={rise} className="max-w-3xl font-display text-[clamp(3.8rem,8.2vw,7.6rem)] leading-[.91] tracking-[-.065em]">Pop-up when<br />you <em className="font-normal text-clay">pop by.</em></motion.h1>
+        <motion.h1 variants={rise} className="max-w-3xl font-display text-[clamp(3.8rem,8.2vw,7.6rem)] leading-[.91] tracking-[-.065em]">Pop up when<br />you <em className="font-normal text-clay">pop by.</em></motion.h1>
         <motion.p variants={rise} className="mt-8 max-w-xl text-base leading-8 text-[#68655e] md:text-lg">A zero-anxiety, location-anchored social space for feeling human presence in the physical world.</motion.p>
         <motion.div variants={rise} className="mt-9 flex flex-wrap items-center gap-5"><LaunchButton className="px-7 py-4">Open PopBy App</LaunchButton><a href="#atmosphere" className="group inline-flex items-center gap-2 text-sm font-medium underline decoration-[#bcb6aa] underline-offset-4 transition hover:text-clay">See how it feels <ArrowDownRight size={15} className="transition-transform group-hover:translate-y-0.5" /></a></motion.div>
         <motion.div variants={rise} className="mt-16 flex items-center gap-4 text-xs text-[#77736b]"><div className="flex -space-x-2"><span className="h-7 w-7 rounded-full border-2 border-paper bg-[#E7BBAA]" /><span className="h-7 w-7 rounded-full border-2 border-paper bg-[#9DBAA4]" /><span className="h-7 w-7 rounded-full border-2 border-paper bg-[#E8D587]" /></div><span>Made for the places in-between.</span></motion.div>
@@ -108,10 +128,10 @@ export default function Home() {
       <DevicePreview />
     </section>
 
-    <section id="atmosphere" className="border-y border-[#E6E0D6] bg-[#F8F4EC] py-24 md:py-32">
-      <div className="mx-auto max-w-7xl px-6 md:px-10"><motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: .35 }} variants={rise} className="mb-12 flex flex-wrap items-end justify-between gap-6"><div><p className="mb-4 text-[11px] font-semibold tracking-[.16em] text-sage">A DIFFERENT KIND OF SOCIAL</p><h2 className="font-display text-5xl tracking-[-.05em] md:text-6xl">The Atmosphere<br />of PopBy</h2></div><p className="max-w-xs text-sm leading-6 text-[#77736b]">Three small ways to make the ordinary walk feel a little more alive.</p></motion.div>
+    <section id="atmosphere" data-viewport-section="true" className="screen-section border-y border-[#E6E0D6] bg-[#F8F4EC]">
+      <div className="mx-auto w-full max-w-7xl px-6 md:px-10"><motion.div initial="hidden" whileInView="visible" viewport={{ once: false, amount: .35 }} variants={rise} className="mb-8 flex flex-wrap items-end justify-between gap-6"><div><p className="mb-4 text-[11px] font-semibold tracking-[.16em] text-sage">A DIFFERENT KIND OF SOCIAL</p><h2 className="font-display text-5xl tracking-[-.05em] md:text-6xl">The Atmosphere<br />of PopBy</h2></div><p className="max-w-xs text-sm leading-6 text-[#77736b]">Three small ways to make the ordinary walk feel a little more alive.</p></motion.div>
         <div className="story-scroll -mr-6 flex snap-x gap-5 overflow-x-auto pb-5 pr-6 md:-mr-10 md:pr-10">
-          {stories.map((story, index) => <motion.article key={story.number} initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .2 }} transition={{ delay: index * .1 }} whileHover={{ y: -5, rotate: index === 1 ? 0 : index === 0 ? -.5 : .5 }} className={`relative flex min-h-[500px] w-[82vw] shrink-0 snap-start flex-col overflow-hidden rounded-[2rem] p-7 md:w-[385px] md:p-8 ${story.color}`}>
+          {stories.map((story, index) => <motion.article key={story.number} initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: [0, -3, 0] }} viewport={{ once: false, amount: .2 }} transition={{ opacity: { delay: index * .1 }, y: { delay: index * .3, duration: 5 + index, repeat: Infinity, ease: "easeInOut" } }} whileHover={{ y: -5, rotate: index === 1 ? 0 : index === 0 ? -.5 : .5 }} className={`relative flex min-h-[430px] w-[82vw] shrink-0 snap-start flex-col overflow-hidden rounded-[2rem] p-7 md:w-[385px] md:p-7 ${story.color}`}>
             <div className="flex items-start justify-between"><span className="text-xs font-semibold">{story.number} / 03</span><span className={`h-3 w-3 rounded-full ${story.dot}`} /></div>
             <StoryScene type={index} />
             <div className="relative mt-auto"><p className="relative mb-3 text-xs font-medium tracking-[.18em] text-ink/55">{story.chinese}</p><h3 className="relative whitespace-pre-line font-display text-[2.65rem] leading-[.9] tracking-[-.055em]">{story.title}</h3><p className="relative mt-5 max-w-[300px] text-sm leading-6 text-ink/70">{story.text}</p></div>
@@ -121,16 +141,22 @@ export default function Home() {
       </div>
     </section>
 
-    <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-36">
-      <div className="grid gap-12 lg:grid-cols-[.78fr_1.22fr]"><motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: .35 }} variants={rise}><p className="mb-4 text-[11px] font-semibold tracking-[.16em] text-clay">GENTLER BY DESIGN</p><h2 className="font-display text-5xl leading-[.94] tracking-[-.055em] md:text-6xl">Socializing<br />without the<br /><em className="font-normal text-sage">noise.</em></h2><p className="mt-7 max-w-sm text-sm leading-7 text-[#77736b]">A new rhythm for sharing space: less performance, more presence.</p></motion.div>
-        <div className="grid gap-4 sm:grid-cols-2"><motion.article initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} whileHover={{ y: -4 }} className="relative overflow-hidden rounded-[1.75rem] bg-[#F2E2D8] p-7 sm:col-span-2"><div className="mb-12 grid h-11 w-11 place-items-center rounded-full bg-clay text-paper"><MapPin size={19} /></div><span className="text-xs font-semibold tracking-[.14em] text-clay">01 / IN PLACE</span><h3 className="mt-3 font-display text-3xl tracking-[-.04em]">Asynchronous Unlocking</h3><p className="mt-3 max-w-md text-sm leading-6 text-ink/70">Leave thoughts tied to physical coordinates. They can only be opened by someone truly nearby.</p><HumanMoment type="crossing" /><FeatureSketch kind="pin" /></motion.article>
-          <motion.article initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: .1 }} whileHover={{ y: -4 }} className="relative overflow-hidden rounded-[1.75rem] bg-[#DFEAD9] p-7"><div className="mb-12 grid h-11 w-11 place-items-center rounded-full bg-sage text-paper"><MessageCircleHeart size={19} /></div><span className="text-xs font-semibold tracking-[.14em] text-sage">02 / UNBURDENED</span><h3 className="mt-3 font-display text-3xl tracking-[-.04em]">Zero Anxiety</h3><p className="mt-3 text-sm leading-6 text-ink/70">No likes. No comments. No DMs. No pressure to perform.</p><HumanMoment type="dog" /><FeatureSketch kind="heart" /></motion.article>
-          <motion.article initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: .2 }} whileHover={{ y: -4 }} className="relative overflow-hidden rounded-[1.75rem] bg-[#F4E9C9] p-7"><div className="mb-12 grid h-11 w-11 place-items-center rounded-full bg-[#C59D44] text-paper"><Sparkles size={19} /></div><span className="text-xs font-semibold tracking-[.14em] text-[#A27F2E]">03 / TOGETHER</span><h3 className="mt-3 font-display text-3xl tracking-[-.04em]">Shifting Perspective</h3><p className="mt-3 text-sm leading-6 text-ink/70">Co-create a soul for physical places, instead of showing off yourself.</p><HumanMoment type="shop" /><FeatureSketch kind="spark" /></motion.article>
+    <section data-viewport-section="true" className="screen-section mx-auto max-w-7xl px-6 md:px-10">
+      <div className="feature-layout grid w-full gap-12 lg:grid-cols-[.78fr_1.22fr]">
+        <motion.div initial="hidden" whileInView="visible" viewport={{ once: false, amount: .35 }} variants={rise}>
+          <p className="mb-4 text-[11px] font-semibold tracking-[.16em] text-clay">GENTLER BY DESIGN</p>
+          <h2 className="font-display text-5xl leading-[.94] tracking-[-.055em] md:text-6xl">Socializing<br />without the<br /><em className="font-normal text-sage">noise.</em></h2>
+          <p className="mt-7 max-w-sm text-sm leading-7 text-[#77736b]">A new rhythm for sharing space: less performance, more presence.</p>
+        </motion.div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <motion.article data-feature-size="wide" initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false }} whileHover={{ y: -4 }} className="feature-card feature-card-primary relative overflow-hidden rounded-[1.75rem] bg-[#F2E2D8] p-7 sm:col-span-2"><div className="mb-12 grid h-11 w-11 place-items-center rounded-full bg-clay text-paper"><MapPin size={19} /></div><span className="text-xs font-semibold tracking-[.14em] text-clay">01 / IN PLACE</span><h3 className="mt-3 font-display text-3xl tracking-[-.04em]">Asynchronous Unlocking</h3><p className="mt-3 max-w-md text-sm leading-6 text-ink/70">Leave thoughts tied to physical coordinates. They can only be opened by someone truly nearby.</p><HumanMoment type="crossing" /><FeatureSketch kind="pin" /></motion.article>
+          <motion.article data-feature-size="half" initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false }} transition={{ delay: .1 }} whileHover={{ y: -4 }} className="feature-card relative overflow-hidden rounded-[1.75rem] bg-[#DFEAD9] p-7"><div className="mb-12 grid h-11 w-11 place-items-center rounded-full bg-sage text-paper"><MessageCircleHeart size={19} /></div><span className="text-xs font-semibold tracking-[.14em] text-sage">02 / UNBURDENED</span><h3 className="mt-3 font-display text-3xl tracking-[-.04em]">Zero Anxiety</h3><p className="mt-3 text-sm leading-6 text-ink/70">No likes. No comments. No DMs. No pressure to perform.</p><HumanMoment type="dog" /><FeatureSketch kind="heart" /></motion.article>
+          <motion.article data-feature-size="half" initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false }} transition={{ delay: .2 }} whileHover={{ y: -4 }} className="feature-card relative overflow-hidden rounded-[1.75rem] bg-[#F4E9C9] p-7"><div className="mb-12 grid h-11 w-11 place-items-center rounded-full bg-[#C59D44] text-paper"><Sparkles size={19} /></div><span className="text-xs font-semibold tracking-[.14em] text-[#A27F2E]">03 / TOGETHER</span><h3 className="mt-3 font-display text-3xl tracking-[-.04em]">Shifting Perspective</h3><p className="mt-3 text-sm leading-6 text-ink/70">Co-create a soul for physical places, instead of showing off yourself.</p><HumanMoment type="shop" /><FeatureSketch kind="spark" /></motion.article>
         </div>
       </div>
     </section>
 
-    <section className="mx-4 mb-4 rounded-[2.5rem] bg-ink px-6 py-20 text-paper md:mx-6 md:mb-6 md:py-28"><div className="mx-auto max-w-3xl text-center"><p className="mb-6 text-[11px] font-semibold tracking-[.18em] text-[#E7BBAA]">THE STREET IS WAITING</p><h2 className="font-display text-5xl leading-[.94] tracking-[-.055em] md:text-7xl">Rediscover the streets.<br /><em className="font-normal text-[#D9E9D6]">Feel the quiet presence</em><br />around you.</h2><LaunchButton className="mt-10 bg-paper px-7 py-4 text-ink hover:bg-clay hover:text-paper">Pop By Now</LaunchButton></div></section>
+    <section data-viewport-section="true" className="screen-section cta-section relative mx-4 overflow-hidden rounded-[2.5rem] bg-ink px-6 text-paper md:mx-6"><div className="cta-orbit" aria-hidden="true"><i /><i /><i /></div><motion.div initial={{ opacity: 0, scale: .94 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: false, amount: .5 }} className="relative z-10 mx-auto max-w-3xl text-center"><p className="mb-6 text-[11px] font-semibold tracking-[.18em] text-[#E7BBAA]">THE STREET IS WAITING</p><h2 className="font-display text-5xl leading-[.94] tracking-[-.055em] md:text-7xl">Rediscover the streets.<br /><em className="font-normal text-[#D9E9D6]">Feel the quiet presence</em><br />around you.</h2><LaunchButton className="mt-10 bg-paper px-7 py-4 text-ink hover:bg-clay hover:text-paper">Pop By Now</LaunchButton></motion.div></section>
 
     <footer className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 text-xs text-[#817d74] md:flex-row md:items-center md:justify-between md:px-10"><span>© 2025 PopBy. A softer way to be here.</span><div className="flex gap-5"><a href="#top" className="transition hover:text-ink">Back to top ↑</a><a href={appUrl} target="_blank" rel="noopener noreferrer" className="transition hover:text-ink">Try PopBy →</a></div></footer>
   </main>;
