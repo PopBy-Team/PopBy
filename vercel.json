@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm --prefix popBy_introduction ci",
+  "buildCommand": "npm --prefix popBy_introduction run build",
+  "outputDirectory": "popBy_introduction/.next"
+}
